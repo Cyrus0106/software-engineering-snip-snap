@@ -14,6 +14,10 @@ def create_app():
     @app.get("/barber_dashboard")
     def barber_dashboard():
         return render_template("barber_dashboard.html", title="Barber Dashboard")
+    
+    @app.route("/example")
+    def example():
+        return render_template("example.html", mount_id="photoUploadSingle", max_photos=1)
 
     return app
 

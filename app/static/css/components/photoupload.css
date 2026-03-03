@@ -1,0 +1,137 @@
+/* Photo Upload Component */
+
+.photo-upload {
+  position: relative;
+  margin-top: 20px;
+  max-width: 400px;
+}
+
+/* Upload Button */
+.photo-upload-btn {
+  padding: 10px 16px;
+  background-color: #111;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.photo-upload-btn:hover {
+  background-color: #333;
+}
+
+.photo-upload-btn:active {
+  transform: scale(0.97);
+}
+
+/* Popup container */
+.photo-upload-popup {
+  margin-top: 12px;
+  padding: 15px;
+  border-radius: 8px;
+  background: #f8f8f8;
+  border: 1px solid #ddd;
+
+  /* Animation base state */
+  opacity: 1;
+  transform: translateY(0);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Hidden state */
+.photo-upload-popup.hidden {
+  opacity: 0;
+  transform: translateY(-8px);
+  pointer-events: none;
+}
+
+/* File input */
+.photo-upload-input {
+  display: block;
+  margin-bottom: 12px;
+}
+
+/* Preview container */
+.photo-upload-preview {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Image preview */
+.photo-upload-preview img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  transition: transform 0.2s ease;
+}
+
+.photo-upload-preview img:hover {
+  transform: scale(1.05);
+}
+
+/* Limit message */
+.photo-upload-limit-message {
+  margin-top: 8px;
+  font-size: 13px;
+  color: #c0392b;
+}
+
+/* Utility */
+.hidden {
+  display: none;
+}
+
+.photo-upload {
+    margin-top: 20px;
+    max-width: 400px;
+}
+
+.photo-upload-btn {
+    padding: 10px 15px;
+    background: black;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.photo-upload-popup.hidden {
+    display: none;
+}
+
+.photo-upload-preview {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+.preview-wrapper {
+    position: relative;
+}
+
+.preview-wrapper img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.remove-btn {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    background: red;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    cursor: pointer;
+}

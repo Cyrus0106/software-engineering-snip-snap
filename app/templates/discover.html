@@ -7,6 +7,22 @@
   <p id="discoverSelection" class="placeholder" aria-live="polite">
     No selection yet.
   </p>
+  <div 
+    id="photoUploadMount" 
+    class="photo-upload"
+    data-max="3">
+      
+      <button class="photo-upload-btn">
+        Upload photo
+      </button>
+
+      <div class="photo-upload-popup hidden">
+        <input type="file" class="photo-upload-input" accept="image/*">
+        <div class="photo-upload-preview"></div>
+        <div class="photo-upload-limit-message"></div>
+      </div>
+
+  </div>
 {% endblock %}
 
 {% block scripts %}
