@@ -1,6 +1,9 @@
 {% extends "base.html" %}
 {% block content %}
   <h1>Barber Dashboard</h1>
+  {% if user_id %}
+    <div class="js-user-promo" data-user-id="{{ user_id }}"></div>
+  {% endif %}
 
   {% if errors %}
     <ul>

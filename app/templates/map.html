@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/map.css') }}" />
+{% endblock %}
+
+{% block content %}
+<div id="map-wrapper">
+
+  <div id="map"></div>
+
+  <!-- Search bar overlay (searchAutocomplete mounts here) -->
+  <div id="map-search-bar"></div>
+
+  <!-- My Location button -->
+  <button id="my-location-btn" type="button">My Location &#8593;</button>
+
+  <!-- Location modal -->
+  <div id="location-modal">
+    <div id="location-modal-content">
+      <button type="button" id="location-modal-close" aria-label="Close">&times;</button>
+      <input
+        type="text"
+        id="location-input"
+        placeholder="Enter Postcode / Address"
+        autocomplete="off"
+      />
+      <button type="button" id="set-location-btn">Set Location</button>
+      <button type="button" id="use-current-location-btn">Use Current Location</button>
+    </div>
+  </div>
+
+  <!-- Save location prompt -->
+  <div id="save-location-prompt" class="hidden">
+    <p>Save this location to your profile?</p>
+    <div class="save-prompt-btns">
+      <button type="button" id="save-location-no">Not now</button>
+      <button type="button" id="save-location-yes">Save</button>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script src="{{ url_for('static', filename='js/pages/map.js') }}"></script>
+{% endblock %}

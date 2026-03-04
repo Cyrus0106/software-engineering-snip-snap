@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional, Tuple
 from app.db.queries import fetch_discover_posts
 
 
+# _safe_int_list is a helper function that takes any value and returns a list of integers if the value is a list of integers, or an empty list otherwise. This is used to safely parse the filter_ids, tag_ids, barber_ids, and barbershop_ids from the payload.
 def _safe_int_list(value: Any) -> List[int]:
     if not isinstance(value, list):
         return []
@@ -13,7 +14,9 @@ def _safe_int_list(value: Any) -> List[int]:
             out.append(x)
     return out
 
-
+# _resolve_effective_sort is a helper function that takes the filter_ids and effective_sort from the payload and determines the effective sort order to use for the query. The logic is as follows:
+# - If effective_sort is provided and is one of "most_recent", "highest_rated", or "closest", use that.
+# - If filter_ids contains 2 (which represents "most recent"), use "most_recent
 def _resolve_effective_sort(filter_ids: List[int], effective_sort: Optional[str]) -> str:
     if effective_sort in ("most_recent", "highest_rated", "closest"):
         return effective_sort
@@ -27,7 +30,7 @@ def _resolve_effective_sort(filter_ids: List[int], effective_sort: Optional[str]
         return "closest"
     return "most_recent"
 
-
+# _parse_cursor is a helper function that takes the cursor from the payload and parses it into a tuple of (created_at, photo_id) if it's valid, or returns None if it's not valid. The cursor is expected to be a dict with "created_at" as an ISO8601 string and "photo_id" as an integer.
 def _parse_cursor(cursor: Any) -> Optional[Tuple[datetime, int]]:
     if cursor is None:
         return None
@@ -43,7 +46,7 @@ def _parse_cursor(cursor: Any) -> Optional[Tuple[datetime, int]]:
         return None
     return (dt, photo_id)
 
-
+# query_post_gallery is the main function that takes the payload from the request, parses the filters and pagination parameters, queries the database for posts that match the criteria, and returns a dict containing the items, next_cursor, and has_more flag. The items are formatted as a list of dicts with item_type "post" and relevant post information.
 def query_post_gallery(payload: Dict[str, Any]) -> Dict[str, Any]:
     filter_ids = _safe_int_list(payload.get("filter_ids"))
     tag_ids = _safe_int_list(payload.get("tag_ids"))

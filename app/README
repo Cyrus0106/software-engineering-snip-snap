@@ -8,9 +8,12 @@ This folder contains the Flask application code.
 - High-level application wiring (registering routes, config, blueprints later)
 
 ## What does NOT belong here
-- SQL queries (these go in `app/db/`)
+- SQL queries (these go in `app/db/`, including functions like `get_user_promo`)
 - Full HTML pages duplicated across routes (templates go in `app/templates/`)
 - CSS/JS assets (these go in `app/static/`)
+
+## API Endpoints
+- **GET /api/users/<int:user_id>/promo**: Retrieves promotional information for a user by ID.
 
 ## Typical workflow
 When adding a new page:

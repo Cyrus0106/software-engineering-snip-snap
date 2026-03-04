@@ -15,3 +15,14 @@ Client-side JavaScript for the site (runs in the browser).
 If a page needs specific JS, either:
 - Load a dedicated file for that page, or
 - Keep it in `main.js` if it’s truly global
+
+## User promo component
+- Module: `app/static/js/components/userPromo.js`
+- Exports:
+	- `mountUserPromo(containerEl, userId, options?)`
+	- `initUserPromos(root = document)`
+- Auto-mount selector: `.js-user-promo[data-user-id]`
+- Example markup:
+	- `<div class="js-user-promo" data-user-id="42"></div>`
+
+`initUserPromos()` is called from `app/static/js/main.js`.

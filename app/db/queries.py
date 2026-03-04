@@ -10,6 +10,12 @@ def _get_conn():
     db_url = os.environ.get("DATABASE_URL")
     if not db_url:
         raise RuntimeError("DATABASE_URL environment variable is not set")
+
+    # Supabase Postgres requires SSL. Enforce if not present in the URL.
+    if "sslmode=" not in db_url:
+        sep = "&" if "?" in db_url else "?"
+        db_url = f"{db_url}{sep}sslmode=require"
+
     return psycopg2.connect(db_url)
 
 
@@ -127,7 +133,100 @@ def _pick_label(row: Dict[str, Any], preferred_keys: List[str]) -> str:
     return ""
 
 
+def get_user_promo(user_id: int) -> Optional[Dict[str, Any]]:
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    u.user_id,
+                    u.username AS name,
+                    u.role,
+                    pp.image_url AS profile_image_url,
+                    bs.name AS barbershop_name
+                FROM App_User u
+                LEFT JOIN Barber b ON b.user_id = u.user_id
+                LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id
+                LEFT JOIN ProfilePhoto pp ON pp.user_id = u.user_id
+                WHERE u.user_id = %s
+                LIMIT 1
+                """,
+                (user_id,),
+            )
+            row = cur.fetchone()
+
+    if not row:
+        return None
+
+    raw_url = row.get("profile_image_url")
+    image_url = None
+    if raw_url and "/profiles/" in raw_url:
+        image_url = raw_url.replace("/static/uploads/profiles/", "/static/uploads/profile_photos/")
+    elif raw_url:
+        image_url = raw_url
+
+    return {
+        "name": row.get("name") or "Unknown",
+        "role": row.get("role") or "",
+        "profile_image_url": image_url,
+        "barbershop_name": row.get("barbershop_name") or "",
+    }
+
+
 import psycopg2.extras
+
+
+def get_barbershops_for_map():
+    """Return all barbershops with their barbers for the map page API."""
+    with _get_conn() as conn:
+        with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                """
+                SELECT
+                    bs.barbershop_id,
+                    bs.name,
+                    bs.postcode,
+                    bs.location_lat,
+                    bs.location_lng,
+                    bs.phone,
+                    bs.website,
+                    b.barber_id,
+                    b.bio,
+                    u.username,
+                    pp.image_url AS profile_image_url
+                FROM Barbershop bs
+                LEFT JOIN Barber b ON b.barbershop_id = bs.barbershop_id
+                LEFT JOIN App_User u ON u.user_id = b.user_id
+                LEFT JOIN ProfilePhoto pp ON pp.user_id = b.user_id
+                ORDER BY bs.barbershop_id, b.barber_id
+                """
+            )
+            rows = cur.fetchall()
+
+    shops = {}
+    for row in rows:
+        bid = row["barbershop_id"]
+        if bid not in shops:
+            shops[bid] = {
+                "barbershop_id": bid,
+                "name": row["name"],
+                "postcode": row["postcode"].strip(),
+                "lat": row["location_lat"],
+                "lng": row["location_lng"],
+                "phone": row["phone"],
+                "website": row["website"],
+                "barbers": [],
+            }
+        if row["barber_id"] is not None:
+            shops[bid]["barbers"].append(
+                {
+                    "barber_id": row["barber_id"],
+                    "username": row["username"],
+                    "profile_image_url": row["profile_image_url"],
+                }
+            )
+
+    return list(shops.values())
 
 
 def fetch_discover_search_items():

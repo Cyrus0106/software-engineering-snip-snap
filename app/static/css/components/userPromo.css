@@ -1,0 +1,44 @@
+.user-promo {
+  --user-promo-avatar-size: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--user-promo-avatar-size);
+  color: #1f2933;
+}
+
+.user-promo__avatar {
+  width: var(--user-promo-avatar-size);
+  height: var(--user-promo-avatar-size);
+  border-radius: 999px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: #e9ecef;
+  color: #9aa1a9;
+}
+
+.user-promo__avatar img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.user-promo__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.user-promo__name {
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.user-promo__subtext {
+  font-size: 0.825rem;
+  color: #6b7280;
+  line-height: 1.2;
+}

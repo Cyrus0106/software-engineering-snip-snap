@@ -1,17 +1,22 @@
 from pathlib import Path
 from uuid import uuid4
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, abort
 from PIL import Image, UnidentifiedImageError
 from werkzeug.utils import secure_filename
 
-from app.db.queries import create_haircut_post, filter_existing_tag_ids
+from app.db.queries import (
+    create_haircut_post,
+    filter_existing_tag_ids,
+    get_barbershops_for_map,
+    get_user_promo,
+)
 
 from app.services.post_gallery_service import query_post_gallery
 from app.services.discover_search_service import get_discover_search_items
 
 ALLOWED_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
-
+DEMO_BARBER_USER_ID = 4
 
 def create_app():
     app = Flask(__name__)
@@ -24,11 +29,24 @@ def create_app():
     def discover():
         return render_template("discover.html", title="Discover Page")
 
+    @app.get("/map")
+    def map_page():
+        return render_template("map.html", title="Map")
+
+    @app.get("/api/barbershops")
+    def api_barbershops():
+        try:
+            shops = get_barbershops_for_map()
+            return jsonify(shops)
+        except Exception:
+            return jsonify({"error": "Could not load barbershops"}), 500
+
     @app.get("/barber_dashboard")
     def barber_dashboard():
         return render_template(
             "barber_dashboard.html",
             title="Barber Dashboard",
+            user_id=DEMO_BARBER_USER_ID,
             errors=[],
             success=None,
             form_data={"tags": ""},
@@ -44,6 +62,13 @@ def create_app():
     def api_discover_search_items():
         items = get_discover_search_items()
         return jsonify({"items": items})
+
+    @app.route('/api/users/<int:user_id>/promo', methods=['GET'])
+    def user_promo(user_id):
+        user_data = get_user_promo(user_id)
+        if user_data is None:
+            abort(404, description="User not found")
+        return jsonify(user_data)
 
     @app.post("/barber_dashboard/upload_post")
     def upload_post():
@@ -96,6 +121,7 @@ def create_app():
                 render_template(
                     "barber_dashboard.html",
                     title="Barber Dashboard",
+                    user_id=DEMO_BARBER_USER_ID,
                     errors=errors,
                     success=None,
                     form_data={"tags": tags_raw},
@@ -127,6 +153,7 @@ def create_app():
                 render_template(
                     "barber_dashboard.html",
                     title="Barber Dashboard",
+                    user_id=DEMO_BARBER_USER_ID,
                     errors=["Could not save post to the database."],
                     success=None,
                     form_data={"tags": tags_raw},
@@ -137,6 +164,7 @@ def create_app():
         return render_template(
             "barber_dashboard.html",
             title="Barber Dashboard",
+            user_id=DEMO_BARBER_USER_ID,
             errors=[],
             success="Post uploaded successfully.",
             form_data={"tags": ""},
