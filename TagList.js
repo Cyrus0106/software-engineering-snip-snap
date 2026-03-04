@@ -8,7 +8,7 @@
  *   - add_item(json): Add a tag to the list
  *   - get_items(): Get all current tags as JSON array
  * 
- * Author: MIRZA MD SAKIF SHAHNOOR - SnipSnap Project
+ * Author: MIRZA MD SAKIF SHAHNOOR
  * University of Portsmouth - Group 7E
  */
 
@@ -31,11 +31,11 @@ class TagList {
 
   /**
    * PUBLIC API: Add a tag to the list
-   * @param {Object} tagJson - Must contain {name: string, type: string}
+   * @param {Object} tagJson - Must contain {id: number, type: string, label: string}
    * @returns {boolean} - Success status
    * 
    * Example usage:
-   *   tagList.add_item({"name": "closest", "type": "filter"})
+   *   tagList.add_item({"id": 0, "type": "filter", "label": "closest"})
    */
   add_item(tagJson) {
     // Validate input
@@ -44,13 +44,18 @@ class TagList {
       return false;
     }
 
-    if (!tagJson.name || typeof tagJson.name !== 'string') {
-      console.error('TagList.add_item: Missing or invalid "name" field');
+    if (tagJson.id === undefined || typeof tagJson.id !== 'number') {
+      console.error('TagList.add_item: Missing or invalid "id" field (must be a number)');
       return false;
     }
 
     if (!tagJson.type || typeof tagJson.type !== 'string') {
       console.error('TagList.add_item: Missing or invalid "type" field');
+      return false;
+    }
+
+    if (!tagJson.label || typeof tagJson.label !== 'string') {
+      console.error('TagList.add_item: Missing or invalid "label" field');
       return false;
     }
 
@@ -61,20 +66,19 @@ class TagList {
       return false;
     }
 
-    // Check for duplicates (optional - prevents same tag being added twice)
-    const isDuplicate = this.tags.some(
-      tag => tag.name === tagJson.name && tag.type === tagJson.type
-    );
+    // Check for duplicates by ID
+    const isDuplicate = this.tags.some(tag => tag.id === tagJson.id);
     
     if (isDuplicate) {
-      console.warn('TagList.add_item: Tag already exists in list');
+      console.warn('TagList.add_item: Tag with this ID already exists in list');
       return false;
     }
 
     // Add tag to internal state
     this.tags.push({
-      name: tagJson.name,
-      type: tagJson.type
+      id: tagJson.id,
+      type: tagJson.type,
+      label: tagJson.label
     });
 
     // Re-render UI
@@ -85,20 +89,21 @@ class TagList {
 
   /**
    * PUBLIC API: Get all current tags
-   * @returns {Array} - JSON array of all tags with name and type
+   * @returns {Array} - JSON array of all tags with id, type, and label
    * 
    * Example output:
    *   [
-   *     {"name": "closest", "type": "filter"},
-   *     {"name": "fade", "type": "tag"},
-   *     {"name": "alex_barber", "type": "barber"}
+   *     {"id": 0, "type": "filter", "label": "closest"},
+   *     {"id": 21, "type": "tag", "label": "fade"},
+   *     {"id": 23, "type": "barber", "label": "alex_barber"}
    *   ]
    */
   get_items() {
     // Return a copy to prevent external modification
     return this.tags.map(tag => ({
-      name: tag.name,
-      type: tag.type
+      id: tag.id,
+      type: tag.type,
+      label: tag.label
     }));
   }
 
@@ -147,16 +152,16 @@ class TagList {
       const tagElement = document.createElement('div');
       tagElement.className = `taglist-item ${this._getTagClass(tag.type)}`;
       
-      // Tag name text
-      const nameSpan = document.createElement('span');
-      nameSpan.className = 'taglist-name';
-      nameSpan.textContent = tag.name;
+      // Tag label text
+      const labelSpan = document.createElement('span');
+      labelSpan.className = 'taglist-label';
+      labelSpan.textContent = tag.label;
       
       // Remove button (X)
       const removeBtn = document.createElement('button');
       removeBtn.className = 'taglist-remove';
       removeBtn.textContent = '×';
-      removeBtn.setAttribute('aria-label', `Remove ${tag.name} tag`);
+      removeBtn.setAttribute('aria-label', `Remove ${tag.label} tag`);
       
       // Click handler for remove
       removeBtn.addEventListener('click', (e) => {
@@ -165,7 +170,7 @@ class TagList {
       });
       
       // Assemble tag element
-      tagElement.appendChild(nameSpan);
+      tagElement.appendChild(labelSpan);
       tagElement.appendChild(removeBtn);
       container.appendChild(tagElement);
     });
@@ -203,7 +208,7 @@ class TagList {
       transition: all 0.2s ease;
     }
 
-    .taglist-name {
+    .taglist-label {
       user-select: none;
     }
 

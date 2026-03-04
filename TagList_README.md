@@ -5,21 +5,9 @@ A reusable, pure UI component for displaying and managing removable tags. Built 
 
 **Author:** MIRZA MD SAKIF SHAHNOOR
 **Project:** SnipSnap - Group 7E, University of Portsmouth  
-**Component Type:** Pure UI (no backend calls, no business logic)
+**Component Type:** UI
 
----
 
-## Features
-- Display tags with remove functionality
-- Support for 4 tag types: `filter`, `tag`, `barber`, `barbershop`
-- Public API: `add_item()` and `get_items()`
-- Instant UI updates on add/remove
-- Built-in styling (customizable)
-- Duplicate prevention
-- Input validation
-- Mobile responsive
-
----
 
 ## Quick Start
 
@@ -41,13 +29,13 @@ const tagList = new TagList('myTagList');
 ### 4. Use it
 ```javascript
 // Add tags
-tagList.add_item({"name": "closest", "type": "filter"});
-tagList.add_item({"name": "fade", "type": "tag"});
+tagList.add_item({"id": 0, "type": "filter", "label": "closest"});
+tagList.add_item({"id": 21, "type": "tag", "label": "fade"});
 
 // Get all tags
 const currentTags = tagList.get_items();
 console.log(currentTags);
-// Output: [{"name":"closest","type":"filter"}, {"name":"fade","type":"tag"}]
+// Output: [{"id":0,"type":"filter","label":"closest"}, {"id":21,"type":"tag","label":"fade"}]
 ```
 
 ---
@@ -58,28 +46,29 @@ console.log(currentTags);
 Adds a tag to the list.
 
 **Parameters:**
-- `json` (Object): Must contain `name` (string) and `type` (string)
+- `json` (Object): Must contain `id` (number), `type` (string), and `label` (string)
 
 **Returns:**
 - `boolean`: `true` if successful, `false` if validation fails
 
 **Supported Types:**
-- `"filter"` - Filter tags (e.g., "closest", "highest rated")
-- `"tag"` - Generic tags (e.g., "fade", "curly hair")
-- `"barber"` - Barber name tags (e.g., "alex_barber")
-- `"barbershop"` - Barbershop name tags (e.g., "Fade House")
+- `"filter"` - Filter tags (e.g., id: 0 = "closest", id: 1 = "highest rated")
+- `"tag"` - Generic tags (e.g., id: 21 for specific tags like "fade", "curly hair")
+- `"barber"` - Barber tags (e.g., id: 23 for barber filter)
+- `"barbershop"` - Barbershop tags (e.g., id: 12 for barbershop filter)
 
 **Example:**
 ```javascript
-tagList.add_item({"name": "fade", "type": "tag"});
-tagList.add_item({"name": "alex_barber", "type": "barber"});
+tagList.add_item({"id": 21, "type": "tag", "label": "fade"});
+tagList.add_item({"id": 23, "type": "barber", "label": "alex_barber"});
 ```
 
 **Validation:**
 - Checks if input is valid JSON object
-- Validates `name` and `type` fields exist and are strings
+- Validates `id` field exists and is a number
+- Validates `type` and `label` fields exist and are strings
 - Ensures `type` is one of the 4 supported types
-- Prevents duplicate tags (same name + type)
+- Prevents duplicate IDs (can't add tag with same ID twice)
 
 ---
 
@@ -89,15 +78,15 @@ Returns all current tags as a JSON array.
 **Parameters:** None
 
 **Returns:**
-- `Array`: JSON array of tag objects, each with `name` and `type`
+- `Array`: JSON array of tag objects, each with `id`, `type`, and `label`
 
 **Example:**
 ```javascript
 const tags = tagList.get_items();
 console.log(tags);
 // Output: [
-//   {"name": "closest", "type": "filter"},
-//   {"name": "fade", "type": "tag"}
+//   {"id": 0, "type": "filter", "label": "closest"},
+//   {"id": 21, "type": "tag", "label": "fade"}
 // ]
 ```
 
@@ -108,10 +97,11 @@ console.log(tags);
 ### Example 1: Discover Page Filters
 ```javascript
 // User selects a filter from dropdown
-function onFilterSelected(filterName) {
+function onFilterSelected(filterId, filterLabel) {
   tagList.add_item({
-    "name": filterName,
-    "type": "filter"
+    "id": filterId,
+    "type": "filter",
+    "label": filterLabel
   });
   
   // Get all active filters to send to backend
@@ -127,11 +117,12 @@ function onFilterSelected(filterName) {
 // User types a tag in search bar and hits enter
 searchInput.addEventListener('keypress', (e) => {
   if (e.key === 'Enter') {
-    const tagName = e.target.value.trim();
+    const tagLabel = e.target.value.trim();
     
     tagList.add_item({
-      "name": tagName,
-      "type": "tag"
+      "id": 21,  // Generic tag ID
+      "type": "tag",
+      "label": tagLabel
     });
     
     e.target.value = ''; // Clear input
@@ -142,10 +133,11 @@ searchInput.addEventListener('keypress', (e) => {
 ### Example 3: Following a Barber
 ```javascript
 // User clicks "Follow" button on barber profile
-function followBarber(barberName) {
+function followBarber(barberId, barberName) {
   tagList.add_item({
-    "name": barberName,
-    "type": "barber"
+    "id": barberId,
+    "type": "barber",
+    "label": barberName
   });
   
   // Get followed barbers to filter discover feed
@@ -172,7 +164,7 @@ To use your own CSS, remove the auto-injected styles section from `TagList.js` a
 ```css
 .taglist-container   /* Main container */
 .taglist-item        /* Individual tag */
-.taglist-name        /* Tag name text */
+.taglist-label       /* Tag label text */
 .taglist-remove      /* Remove button (X) */
 
 /* Type-specific classes */
@@ -212,10 +204,10 @@ README.md           - This documentation
 ---
 
 ## Browser Support
-- Chrome/Edge: 
-- Firefox: 
-- Safari: 
-- Mobile browsers: 
+- Chrome/Edge
+- Firefox
+- Safari
+- Mobile browsers
 
 **Requirements:** ES6+ support (modern browsers)
 
@@ -235,13 +227,13 @@ README.md           - This documentation
 ```javascript
 // Test 1: Add valid tag
 console.assert(
-  tagList.add_item({"name": "test", "type": "filter"}) === true,
+  tagList.add_item({"id": 0, "type": "filter", "label": "test"}) === true,
   "Should add valid tag"
 );
 
 // Test 2: Reject invalid type
 console.assert(
-  tagList.add_item({"name": "test", "type": "invalid"}) === false,
+  tagList.add_item({"id": 99, "type": "invalid", "label": "test"}) === false,
   "Should reject invalid type"
 );
 
@@ -251,14 +243,14 @@ console.assert(
   "get_items should return array"
 );
 
-// Test 4: Prevent duplicates
-tagList.add_item({"name": "fade", "type": "tag"});
+// Test 4: Prevent duplicate IDs
+tagList.add_item({"id": 21, "type": "tag", "label": "fade"});
 const beforeCount = tagList.get_items().length;
-tagList.add_item({"name": "fade", "type": "tag"});
+tagList.add_item({"id": 21, "type": "tag", "label": "different_label"});
 const afterCount = tagList.get_items().length;
 console.assert(
   beforeCount === afterCount,
-  "Should prevent duplicate tags"
+  "Should prevent duplicate IDs"
 );
 ```
 
@@ -291,14 +283,26 @@ console.assert(
 - Maximum tag limit
 - Persistent storage (localStorage)
 
+---
 
+## Specification Compliance
+
+**All requirements met:**
+-  Displays a list of tags with name + "X"
+-  Supports types: filter, tag, barber, barbershop
+-  Clicking "X" removes the tag
+-  `add_item(JSON)` adds a tag
+-  `get_items()` returns all tags as JSON
+-  No backend calls or business logic
 
 ---
 
 ## Contact & Support
-**Component Owner:** MIRZA MD SAKIF SHAHNOOR
+**Component Owner:** Database Team  
 **Project:** SnipSnap - Group 7E  
 **University:** University of Portsmouth
+
+For questions or issues, contact the database team lead or raise an issue in the project's GitHub repository.
 
 ---
 
