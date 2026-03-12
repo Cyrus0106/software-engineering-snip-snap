@@ -2,9 +2,6 @@ import os
 from typing import List, Optional, Tuple, Dict, Any
 from datetime import datetime
 
-import psycopg2
-import psycopg2.extras
-
 
 def _get_conn():
     db_url = os.environ.get("DATABASE_URL")
@@ -207,9 +204,6 @@ def get_user_promo(user_id: int) -> Optional[Dict[str, Any]]:
         "profile_image_url": image_url,
         "barbershop_name": row.get("barbershop_name") or "",
     }
-
-
-import psycopg2.extras
 
 
 def get_barbershops_for_map():
