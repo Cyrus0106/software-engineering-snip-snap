@@ -429,22 +429,27 @@ def get_barbershops_for_map():
     shops = {}
     for row in rows:
         bid = row["barbershop_id"]
+        postcode = row.get("postcode")
+        phone = row.get("phone")
+        website = row.get("website")
+        name = row.get("name") or "Unnamed barbershop"
+
         if bid not in shops:
             shops[bid] = {
                 "barbershop_id": bid,
-                "name": row["name"],
-                "postcode": row["postcode"].strip(),
+                "name": name,
+                "postcode": postcode.strip() if isinstance(postcode, str) else "",
                 "lat": row["location_lat"],
                 "lng": row["location_lng"],
-                "phone": row["phone"],
-                "website": row["website"],
+                "phone": phone.strip() if isinstance(phone, str) else "",
+                "website": website.strip() if isinstance(website, str) else "",
                 "barbers": [],
             }
         if row["barber_id"] is not None:
             shops[bid]["barbers"].append(
                 {
                     "barber_id": row["barber_id"],
-                    "username": row["username"],
+                    "username": row.get("username") or "Unknown",
                     "profile_image_url": row["profile_image_url"],
                 }
             )

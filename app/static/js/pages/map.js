@@ -8,13 +8,14 @@ function renderEmpty(message) {
 function toPin(shop) {
   const shopId = Number(shop.barbershop_id);
   const barberCount = Array.isArray(shop.barbers) ? shop.barbers.length : 0;
+  const href = Number.isFinite(shopId) && shopId > 0 ? `/barbershop/${shopId}` : "/map";
 
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "map-pin";
-  button.setAttribute("aria-label", `Open ${shop.name}`);
+  const link = document.createElement("a");
+  link.className = "map-pin";
+  link.href = href;
+  link.setAttribute("aria-label", `Open ${shop.name}`);
 
-  button.innerHTML = `
+  link.innerHTML = `
     <span class="map-pin__dot" aria-hidden="true"></span>
     <span class="map-pin__content">
       <span class="map-pin__name">${shop.name || "Unnamed barbershop"}</span>
@@ -22,11 +23,7 @@ function toPin(shop) {
     </span>
   `;
 
-  button.addEventListener("click", () => {
-    window.location.href = `/barbershop/${shopId}`;
-  });
-
-  return button;
+  return link;
 }
 
 async function initMapPins() {
