@@ -19,6 +19,7 @@ def create_app():
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
         response.headers["Pragma"] = "no-cache"
         response.headers["Expires"] = "0"
+        response.headers["Service-Worker-Allowed"] = "/"
         return response
 
     register_routes(app)
