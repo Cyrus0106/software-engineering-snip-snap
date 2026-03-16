@@ -3,25 +3,25 @@
 {% block title %}Welcome{% endblock %}
 {% block page_title %}Welcome{% endblock %}
 
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/welcome.css') }}">
+{% endblock %}
+
 {% block content %}
-  {% if session.get("user") %}
-    <p>Signed in as <strong>{{ session["user"]["email"] }}</strong> (role: <strong>{{ session["user"]["role"] }}</strong>).</p>
-    <p><a href="{{ url_for('logout') }}">Logout</a></p>
-  {% else %}
-    <p>Welcome to Snip-Snap.</p>
+<div class="login-page">
+  <section class="login-card">
+    {% if session.get("user") %}
+      <p class="welcome-message">Signed in as <strong>{{ session["user"]["email"] }}</strong> (role: <strong>{{ session["user"]["role"] }}</strong>).</p>
+      <p><a href="{{ url_for('logout') }}"><button class="login-btn login-btn--secondary" type="button">Logout</button></a></p>
+    {% else %}
+      <p class="welcome-message">Welcome to Snip-Snap.</p>
 
-    <div style="display:flex; gap:12px; margin-top:16px; flex-wrap:wrap;">
-      <a href="{{ url_for('login') }}">
-        <button type="button">Login</button>
-      </a>
-
-      <a href="{{ url_for('signup') }}">
-        <button type="button">Sign up</button>
-      </a>
-
-      <form method="post" action="{{ url_for('guest_start') }}" style="margin:0;">
-        <button type="submit">Continue as guest</button>
-      </form>
-    </div>
-  {% endif %}
+      <div class="welcome-buttons">
+        <a href="{{ url_for('login') }}"><button type="button">Login</button></a>
+        <a href="{{ url_for('signup') }}"><button type="button">Sign up</button></a>
+        <form method="post" action="{{ url_for('guest_start') }}" style="margin:0;"><button type="submit">Continue as guest</button></form>
+      </div>
+    {% endif %}
+  </section>
+</div>
 {% endblock %}

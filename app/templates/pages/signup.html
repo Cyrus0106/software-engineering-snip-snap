@@ -1,22 +1,41 @@
 {% extends "base.html" %}
 {% block title %}Sign up{% endblock %}
 
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/signin.css') }}">
+{% endblock %}
+
 {% block content %}
-<h1>Sign up</h1>
+<div class="login-page">
+  <section class="login-card">
+    <div class="login-card__header">
+      <h1 class="login-card__title">Sign up</h1>
+      <p class="login-card__subtitle">Create your account to continue.</p>
+    </div>
 
-<p>Signup page loaded.</p>
+    <form id="signupForm" class="login-form">
+      <div class="login-field">
+        <label class="login-label" for="email">Email</label>
+        <input class="login-input" id="email" type="email" required autocomplete="email">
+      </div>
 
-<form id="signupForm">
-  <label>Email<br><input id="email" type="email" required autocomplete="email"></label><br><br>
-  <label>Password<br><input id="password" type="password" required autocomplete="new-password"></label><br><br>
-  <button type="submit">Create account</button>
-</form>
+      <div class="login-field">
+        <label class="login-label" for="password">Password</label>
+        <input class="login-input" id="password" type="password" required autocomplete="new-password">
+      </div>
 
-<hr>
+      <div class="login-actions">
+        <button class="login-btn login-btn--primary" type="submit">Create account</button>
+      </div>
+    </form>
 
-<button id="googleBtn" type="button">Sign up with Google</button>
+    <div class="login-divider">or</div>
 
-<p id="msg" style="margin-top:12px;"></p>
+    <button id="googleBtn" class="login-btn login-btn--secondary" type="button">Sign up with Google</button>
+
+    <p id="msg" class="login-message"></p>
+  </section>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>

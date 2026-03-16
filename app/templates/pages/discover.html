@@ -1,18 +1,36 @@
 {% extends "base.html" %}
-{% block title %}Discover{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/discover.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/searchAutocomplete.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/galleryGrid.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/userPromo.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/postImageCard.css') }}">
+{% endblock %}
 
 {% block content %}
-<h1>Discover</h1>
+  <div class="login-page">
+    <section class="login-card">
+      <div class="login-card__header">
+        <h1 class="login-card__title">Discover</h1>
+        <p class="login-card__subtitle">Find the best barbers and cuts closest to you.</p>
+      </div>
 
-<p>
-  Welcome {{ session["user"]["username"] or session["user"]["email"] }}.
-</p>
+      <div class="discover-actions">
+        <div id="searchBarMount" class="discover-search"></div>
+        <div id="tagListMount" class="discover-taglist"></div>
+      </div>
 
-<p>
-  Role: <strong>{{ session["user"]["role"] }}</strong>
-</p>
+      <div id="postGalleryMount" class="galleryGrid" style="margin-top: 8px;"></div>
+      <div id="postGallerySentinel"></div>
+    </section>
+  </div>
+{% endblock %}
 
-<hr>
-
-<p>This is the discover page. Later this will show post content.</p>
+{% block scripts %}
+  <script>
+    window.__VIEWER_LOC__ = {{ viewer_loc|tojson }};
+  </script>
+  <script src="{{ url_for('static', filename='js/components/searchAutocomplete.js') }}"></script>
+  <script type="module" src="{{ url_for('static', filename='js/pages/discover.js') }}"></script>
 {% endblock %}

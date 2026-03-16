@@ -14,6 +14,9 @@ def create_app():
     app = Flask(__name__)
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-secret")
 
+    from .api import api_bp
+    app.register_blueprint(api_bp)
+
     @app.after_request
     def add_cache_headers(response):
         response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"

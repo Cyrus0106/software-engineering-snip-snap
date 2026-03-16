@@ -1,0 +1,66 @@
+:root {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+.container {
+  max-width: 900px;
+  margin: 48px auto;
+  padding: 0 16px;
+}
+
+button {
+  padding: 10px 14px;
+  cursor: pointer;
+}
+
+.site-header {
+  border-bottom: 1px solid #ddd;
+  padding: 12px 0;
+}
+
+.nav {
+  display: flex;
+  gap: 16px;
+}
+
+.placeholder {
+  opacity: 0.7;
+  font-style: italic;
+}
+
+
+.post-card__promo { margin-bottom: 8px; }
+
+
+.postGalleryLoader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px 0 24px;
+}
+
+.postGalleryLoader__spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid #d9d9d9;
+  border-top-color: #333;
+  border-radius: 50%;
+  animation: postGallerySpin 0.8s linear infinite;
+}
+
+.postGalleryLoader__text {
+  font-size: 13px;
+  color: #555;
+}
+
+@keyframes postGallerySpin {
+  to {
+    transform: rotate(360deg);
+  }
+}

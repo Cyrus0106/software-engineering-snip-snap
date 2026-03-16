@@ -4,7 +4,8 @@
   align-items: center;
   gap: 10px;
   min-height: var(--user-promo-avatar-size);
-  color: #1f2933;
+  color: var(--text-color, #1f2933);
+  padding: 10px;
 }
 
 .user-promo__avatar {
@@ -18,7 +19,6 @@
   background: #e9ecef;
   color: #9aa1a9;
 }
-
 .user-promo__avatar img {
   display: block;
   width: 100%;

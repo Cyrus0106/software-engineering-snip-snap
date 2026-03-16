@@ -1,0 +1,42 @@
+
+{% extends "base.html" %}
+{% block title %}Barber profile{% endblock %}
+
+{% block content %}
+<h1>Barber profile</h1>
+
+<form method="get" action="{{ url_for('barber_profile') }}" style="margin-bottom:16px;">
+  <label for="barber_id">Barber id</label><br />
+  <input id="barber_id" name="barber_id" value="{{ barber_id or '' }}" placeholder="e.g. 4" />
+  <button type="submit">View</button>
+</form>
+
+{% if error %}
+  <p style="color:#b00020;"><strong>{{ error }}</strong></p>
+{% endif %}
+
+{% if not barber %}
+  <p>Enter a barber id to view their profile.</p>
+{% else %}
+  <div style="border:1px solid #ddd; padding:12px; border-radius:8px;">
+    <h2 style="margin-top:0;">{{ barber.username }}</h2>
+    <p><strong>User id:</strong> {{ barber.user_id }}</p>
+
+    {% if barber.postcode %}
+      <p><strong>Postcode:</strong> {{ barber.postcode }}</p>
+    {% endif %}
+
+    {% if barber.location_lat is not none and barber.location_lng is not none %}
+      <p><strong>Location:</strong> {{ barber.location_lat }}, {{ barber.location_lng }}</p>
+    {% else %}
+      <p><strong>Location:</strong> Not set</p>
+    {% endif %}
+
+    <p style="margin-top:12px;">
+      <!-- Placeholder CTA; you’ll wire booking later -->
+      <button type="button" disabled>Book this barber (coming soon)</button>
+    </p>
+  </div>
+{% endif %}
+
+{% endblock %}

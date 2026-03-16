@@ -1,27 +1,49 @@
 {% extends "base.html" %}
 {% block title %}Login{% endblock %}
 
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/login.css') }}">
+{% endblock %}
+
 {% block content %}
-<h1>Login</h1>
+<div class="login-page">
+  <section class="login-card">
+    <div class="login-card__header">
+      <h1 class="login-card__title">Login</h1>
+      <p class="login-card__subtitle">Sign in to continue to Snip-Snap.</p>
+    </div>
 
-<form id="loginForm">
-  <label>Email<br><input id="email" type="email" required autocomplete="email"></label><br><br>
-  <label>Password<br><input id="password" type="password" required autocomplete="current-password"></label><br><br>
-  <button type="submit">Sign in</button>
-</form>
+    <form id="loginForm" class="login-form">
+      <div class="login-field">
+        <label class="login-label" for="email">Email</label>
+        <input class="login-input" id="email" type="email" required autocomplete="email">
+      </div>
 
-<hr>
+      <div class="login-field">
+        <label class="login-label" for="password">Password</label>
+        <input class="login-input" id="password" type="password" required autocomplete="current-password">
+      </div>
 
-<button id="googleBtn" type="button">Login with Google</button>
+      <div class="login-actions">
+        <button class="login-btn login-btn--primary" type="submit">Sign in</button>
+      </div>
+    </form>
 
-<p id="msg" style="margin-top:12px;"></p>
+    <div class="login-divider">or</div>
+
+    <button id="googleBtn" class="login-btn login-btn--secondary" type="button">
+      Login with Google
+    </button>
+
+    <p id="msg" class="login-message"></p>
+  </section>
+</div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   const SUPABASE_URL = "{{ supabase_url|e }}";
   const SUPABASE_ANON_KEY = "{{ supabase_anon_key|e }}";
 
-  // Prevent “already declared” if script is included twice for any reason
   window.__sb__ = window.__sb__ || window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const sb = window.__sb__;
 
@@ -73,6 +95,17 @@
 
     console.log("Redirecting to discover…");
     window.location.href = "{{ url_for('discover') }}";
+  });
+
+  document.getElementById("googleBtn").addEventListener("click", async () => {
+    msg.textContent = "Redirecting to Google…";
+
+    await sb.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin + "{{ url_for('auth_redirect') }}",
+      },
+    });
   });
 </script>
 {% endblock %}

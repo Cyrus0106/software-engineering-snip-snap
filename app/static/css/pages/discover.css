@@ -1,0 +1,176 @@
+:root {
+  --discover-bg: var(--login-bg, #f5f7fb);
+  --discover-surface: var(--login-surface, #ffffff);
+  --discover-surface-2: var(--login-surface-2, #f8fafc);
+  --discover-text: var(--login-text, #1f2937);
+  --discover-muted: var(--login-muted, #6b7280);
+  --discover-border: var(--login-border, #dbe3ef);
+  --discover-shadow: var(--login-shadow, 0 20px 50px rgba(15, 23, 42, 0.08));
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px 16px;
+  background:
+    radial-gradient(circle at top left, rgba(37, 99, 235, 0.10), transparent 30%),
+    var(--discover-bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 1100px;
+  background: var(--discover-surface);
+  border: 1px solid var(--discover-border);
+  border-radius: 20px;
+  box-shadow: var(--discover-shadow);
+  padding: 28px;
+}
+
+.discover-header {
+  margin-bottom: 24px;
+}
+
+.discover-header h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+  color: var(--discover-text);
+}
+
+.discover-subtitle {
+  margin: 0;
+  color: var(--discover-muted);
+  font-size: 0.98rem;
+}
+
+.discover-actions {
+  display: grid;
+  gap: 16px;
+}
+
+.discover-search,
+.discover-taglist {
+  width: 100%;
+  background: var(--discover-surface-2);
+  border: 1px solid var(--discover-border);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.galleryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --discover-bg: var(--login-bg, #181a1f);
+    --discover-surface: var(--login-surface, #23262d);
+    --discover-surface-2: var(--login-surface-2, #2b2f37);
+    --discover-text: var(--login-text, #f3f4f6);
+    --discover-muted: var(--login-muted, #b5bbc6);
+    --discover-border: var(--login-border, #3a404b);
+    --discover-shadow: var(--login-shadow, 0 24px 60px rgba(0, 0, 0, 0.35));
+  }
+
+  .login-page {
+    background:
+      radial-gradient(circle at top left, rgba(245, 158, 11, 0.10), transparent 30%),
+      var(--discover-bg);
+  }
+
+  .login-card,
+  .discover-search,
+  .discover-taglist,
+  .postImageCard {
+    background: #1f232a;
+    border-color: var(--login-accent, #f59e0b);
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    color: var(--discover-text);
+  }
+
+  .discover-header h1 {
+    color: var(--login-accent, #f59e0b);
+  }
+
+  .discover-taglist,
+  .taglist li {
+    border-color: var(--login-accent, #f59e0b) !important;
+    color: var(--login-accent, #f59e0b) !important;
+    background: #1f232a !important;
+  }
+
+  .sa-root {
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .sa-input {
+    background: #1f232a;
+    color: var(--login-text);
+    border: 1px solid var(--login-accent, #f59e0b);
+  }
+
+  .sa-input:focus {
+    border-color: var(--login-accent, #f59e0b);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--login-accent, #f59e0b) 16%, transparent);
+  }
+
+  .sa-dropdown,
+  .sa-item {
+    background: #1f232a;
+    color: var(--discover-text);
+    border: 1px solid var(--discover-border);
+  }
+
+  .sa-item:hover,
+  .sa-item.is-highlighted {
+    background: #26314a;
+  }
+
+  .user-promo__name {
+    color: var(--login-accent, #f59e0b);
+  }
+
+  .user-promo__subtext {
+    color: #94a3b8;
+  }
+
+  .postImageCard__distance,
+  .rating__text {
+    color: #d1d5db;
+  }
+
+  .taglist button {
+    color: var(--login-accent, #f59e0b) !important;
+  }
+}
+
+.taglist {
+  display: flex !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  align-items: center;
+}
+
+.taglist li {
+  border: 1px solid var(--discover-border) !important;
+  background: var(--discover-surface-2) !important;
+  border-radius: 999px !important;
+  padding: 4px 10px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.taglist button {
+  border: none !important;
+  background: transparent !important;
+  cursor: pointer !important;
+  font-weight: 700 !important;
+}

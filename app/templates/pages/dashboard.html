@@ -1,6 +1,33 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Barber Dashboard{% endblock %}
+
 {% block content %}
-<h1>Barber dashboard</h1>
-<p>Only barbers should be able to see this.</p>
+<h1>Edit barber profile</h1>
+
+{% if not barber %}
+  <p>Could not load barber profile data.</p>
+{% else %}
+  <p>
+    Public link:
+    <a href="{{ url_for('barber_profile', barber_id=barber.user_id) }}">
+      View my public profile
+    </a>
+  </p>
+
+  <form method="post" action="{{ url_for('dashboard') }}">
+    <label for="username">Display name</label><br />
+    <input id="username" name="username" value="{{ barber.username or '' }}" /><br /><br />
+
+    <label for="postcode">Postcode</label><br />
+    <input id="postcode" name="postcode" value="{{ barber.postcode or '' }}" /><br /><br />
+
+    <label for="location_lat">Latitude</label><br />
+    <input id="location_lat" name="location_lat" value="{{ barber.location_lat if barber.location_lat is not none else '' }}" /><br /><br />
+
+    <label for="location_lng">Longitude</label><br />
+    <input id="location_lng" name="location_lng" value="{{ barber.location_lng if barber.location_lng is not none else '' }}" /><br /><br />
+
+    <button type="submit">Save</button>
+  </form>
+{% endif %}
 {% endblock %}

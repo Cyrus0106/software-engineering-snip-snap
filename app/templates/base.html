@@ -4,40 +4,33 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>{% block title %}App{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/components/userPromo.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+    {% block styles %}  
+    {% endblock %}
   </head>
   <body>
-    <nav>
-      <a href="{{ url_for('home') }}">Home</a>
-
-      {% set u = session.get("user") %}
-      {% if u %}
-        <span style="margin-left:12px;">
-          {{ (u.get("email") or u.get("username") or "User") }} ({{ u.get("role") }})
-        </span>
-
-        <span style="margin-left:12px;">
-          <a href="{{ url_for('discover') }}">Discover</a>
-          <a style="margin-left:12px;" href="{{ url_for('map_page') }}">Map</a>
-
-          {% if u.get("role") in ["customer", "barber"] %}
-            <a style="margin-left:12px;" href="{{ url_for('profile') }}">My profile</a>
-          {% endif %}
-
-          {% if u.get("role") == "barber" %}
-            <a style="margin-left:12px;" href="{{ url_for('dashboard') }}">Dashboard</a>
-          {% endif %}
-        </span>
-
-        <a style="margin-left:12px;" href="{{ url_for('logout') }}">Logout</a>
-      {% else %}
-        <a style="margin-left:12px;" href="{{ url_for('login') }}">Login</a>
-        <a style="margin-left:12px;" href="{{ url_for('signup') }}">Sign up</a>
-      {% endif %}
-    </nav>
-
-    <main style="padding:16px;">
+    {% set u = session.get("user") %}
+    {% if u %}
+      <aside class="sidebar">
+        <div class="sidebar-brand" aria-hidden="true">✂</div>
+        <a href="{{ url_for('discover') }}" class="sidebar-link sidebar-discover"><span class="sr-only">Discover</span></a>
+        <a href="{{ url_for('map_page') }}" class="sidebar-link sidebar-map"><span class="sr-only">Map</span></a>
+        {% if u.get('role') in ['customer', 'barber'] %}
+          <a href="{{ url_for('profile') }}" class="sidebar-link sidebar-profile"><span class="sr-only">My profile</span></a>
+        {% endif %}
+        {% if u.get('role') == 'barber' %}
+          <a href="{{ url_for('dashboard') }}" class="sidebar-link sidebar-dashboard"><span class="sr-only">Dashboard</span></a>
+        {% endif %}
+        <a href="{{ url_for('logout') }}" class="sidebar-link sidebar-logout"><span class="sr-only">Logout</span></a>
+      </aside>
+      <main class="content-with-sidebar">
+    {% else %}
+      <main class="content-full">
+    {% endif %}
       {% block content %}{% endblock %}
+      {% block scripts %}
+      {% endblock %}
     </main>
   </body>
 </html>

@@ -1,0 +1,110 @@
+/* Autocomplete component styles (isolated via sa-* classes) */
+
+.sa-root {
+  position: relative;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.sa-field {
+  display: flex;
+  align-items: center;
+}
+
+.sa-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  outline: none;
+  font-size: 14px;
+  background: #fff;
+  color: var(--text-color, #1f2937);
+}
+
+.sa-input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+.sa-input:focus {
+  border-color: #9b9b9b;
+}
+
+.sa-dropdown {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  border: 1px solid #d7d7d7;
+  border-radius: 12px;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+}
+
+.sa-dropdown.is-open {
+  display: block;
+}
+
+.sa-item {
+  display: grid;
+  grid-template-columns: 20px 1fr auto;
+  gap: 10px;
+  align-items: centre;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.sa-item:hover {
+  background: #f6f6f6;
+}
+
+.sa-item.is-highlighted {
+  background: #ededed;
+}
+
+.sa-item--empty {
+  cursor: default;
+  color: #666;
+}
+
+/* Icon wrapper */
+.sa-icon {
+  width: 10px;
+  height: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* Force SVG to obey wrapper size */
+.sa-icon svg {
+  width: 10px;
+  height: 10px;
+  max-width: 10px;
+  max-height: 10px;
+  display: block;
+  fill: currentColor;
+}
+
+
+.sa-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sa-type {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid #dedede;
+  color: #444;
+  background: #fafafa;
+  text-transform: lowercase;
+}
