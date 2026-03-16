@@ -1,6 +1,22 @@
 {% extends "base.html" %}
+
 {% block title %}Map{% endblock %}
+
+{% block styles %}
+	<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/map.css') }}">
+{% endblock %}
+
 {% block content %}
-<h1>Map</h1>
-<p>Map page placeholder.</p>
+	<section class="map-page">
+		<header class="map-page__header">
+			<h1 class="map-page__title">Barbershop Map</h1>
+			<p class="map-page__subtitle">Click a pin to open that barbershop page.</p>
+		</header>
+
+		<div id="mapPinsMount" class="map-pins" aria-live="polite"></div>
+	</section>
+{% endblock %}
+
+{% block scripts %}
+	<script type="module" src="{{ url_for('static', filename='js/pages/map.js') }}"></script>
 {% endblock %}

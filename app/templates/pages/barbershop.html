@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Barbershop{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/barbershop.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/components/userPromo.css') }}">
+{% endblock %}
+
+{% block content %}
+  <section class="barbershop-page" data-barbershop-id="{{ barbershop_id }}">
+    <a class="barbershop-page__back" href="{{ url_for('map_page') }}">← Back to map</a>
+
+    <header class="barbershop-page__header">
+      <h1 id="barbershopName" class="barbershop-page__title">Loading barbershop…</h1>
+      <p id="barbershopMeta" class="barbershop-page__meta"></p>
+    </header>
+
+    <section class="barbershop-page__section">
+      <h2 class="barbershop-page__section-title">Barbers</h2>
+      <div id="barberList" class="barbershop-page__barber-list" aria-live="polite"></div>
+    </section>
+
+    <section class="barbershop-page__section barbershop-page__section--placeholder">
+      <h2 class="barbershop-page__section-title">Reviews</h2>
+      <p class="barbershop-page__placeholder">Reviews component coming soon.</p>
+    </section>
+
+    <section class="barbershop-page__section barbershop-page__section--placeholder">
+      <h2 class="barbershop-page__section-title">Timetable</h2>
+      <p class="barbershop-page__placeholder">Timetable component coming soon.</p>
+    </section>
+
+    <section class="barbershop-page__section barbershop-page__section--placeholder">
+      <h2 class="barbershop-page__section-title">Photo Gallery</h2>
+      <p class="barbershop-page__placeholder">Photo gallery component coming soon.</p>
+    </section>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="{{ url_for('static', filename='js/pages/barbershop.js') }}"></script>
+{% endblock %}

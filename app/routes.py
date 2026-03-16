@@ -131,6 +131,12 @@ def register_routes(app):
         return render_template("pages/map.html")
 
 
+    @app.get("/barbershop/<int:barbershop_id>")
+    @login_required
+    def barbershop_page(barbershop_id: int):
+        return render_template("pages/barbershop.html", barbershop_id=barbershop_id)
+
+
     @app.route("/profile")
     @roles_required("customer", "barber")   # guests cannot access
     def profile():
