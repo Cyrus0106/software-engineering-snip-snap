@@ -3,9 +3,11 @@ from flask import render_template, request, redirect, session, url_for, jsonify,
 from .auth import verify_supabase_jwt
 from .input_sanitization import sanitize_input
 from .access import login_required, roles_required
-from .db import get_user_location, link_auth_user_id, get_app_user_by_auth_user_id, get_app_user_by_email, get_user_promo, get_barber_public_by_user_id, update_barber_profile, get_barbershop_by_id, get_shifts_for_barber, get_shop_opening_hours
+from .db import get_user_location, link_auth_user_id, get_app_user_by_auth_user_id, get_app_user_by_email, get_user_promo, get_barber_public_by_user_id, update_barber_profile, get_barbershop_by_id, get_shifts_for_barber, get_shop_opening_hours, get_all_barbershops, get_barber_shop_id, update_barber_shop, create_barbershop, upsert_profile_photo
+from .supabase_storage import upload_profile_photo
 from uuid import uuid4
 from datetime import datetime, time
+import requests as http_requests
 
 def get_closing_soon_info(close_time_str, current_day_num):
     """
@@ -36,6 +38,23 @@ def get_closing_soon_info(close_time_str, current_day_num):
         return {"closing_soon": False, "mins_until_close": 0}
     except:
         return {"closing_soon": False, "mins_until_close": 0}
+
+def geocode_postcode(postcode: str):
+    """Returns (lat, lng) for a UK postcode, or (None, None) if not found."""
+    try:
+        r = http_requests.get(
+            "https://nominatim.openstreetmap.org/search",
+            params={"q": postcode, "format": "json", "limit": 1, "countrycodes": "gb"},
+            headers={"User-Agent": "SnipSnap/1.0"},
+            timeout=5,
+        )
+        data = r.json()
+        if data:
+            return float(data[0]["lat"]), float(data[0]["lon"])
+    except Exception:
+        pass
+    return None, None
+
 
 def get_current_day_num():
     """Get current day of week (0=Monday, 6=Sunday)."""
@@ -306,24 +325,43 @@ def register_routes(app):
                 if err:
                     return render_template("pages/dashboard.html", error=err)
 
-            # Allow blanks to mean NULL
-            lat_raw = (request.form.get("location_lat") or "").strip()
-            lng_raw = (request.form.get("location_lng") or "").strip()
-
-            lat = None
-            lng = None
-            if lat_raw and lng_raw:
-                try:
-                    lat = float(lat_raw)
-                    lng = float(lng_raw)
-                    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
-                        return render_template("pages/dashboard.html", error="Invalid coordinates.")
-                except ValueError:
-                    return render_template("pages/dashboard.html", error="Coordinates must be numbers.")
+            # Geocode postcode to lat/lng
+            lat, lng = None, None
+            if postcode:
+                lat, lng = geocode_postcode(postcode)
 
             update_barber_profile(user_id=user_id, username=username, postcode=postcode, lat=lat, lng=lng)
+
+            # Handle barbershop update
+            barbershop_action = request.form.get("barbershop_action", "existing")
+            if barbershop_action == "new":
+                new_shop_name = (request.form.get("new_shop_name") or "").strip()
+                new_shop_postcode = (request.form.get("new_shop_postcode") or "").strip()
+                if new_shop_name:
+                    shop_id = create_barbershop(new_shop_name, new_shop_postcode)
+                    update_barber_shop(user_id, shop_id)
+            else:
+                barbershop_id_raw = (request.form.get("barbershop_id") or "").strip()
+                if barbershop_id_raw.isdigit():
+                    update_barber_shop(user_id, int(barbershop_id_raw))
+
+            # Handle profile picture upload
+            photo_file = request.files.get("profile_picture")
+            if photo_file and photo_file.filename:
+                allowed_types = {"image/jpeg", "image/png", "image/webp"}
+                if photo_file.content_type in allowed_types:
+                    file_bytes = photo_file.read()
+                    if len(file_bytes) <= 5 * 1024 * 1024:
+                        try:
+                            path = upload_profile_photo(user_id, file_bytes, photo_file.content_type)
+                            upsert_profile_photo(user_id, path)
+                        except Exception as e:
+                            print(f"Profile photo upload failed: {e}")
+
             return redirect(url_for("dashboard"))
 
-        # For display, reuse public fetch by id (barber-only route so safe)
         barber = get_barber_public_by_user_id(user_id)
-        return render_template("pages/dashboard.html", barber=barber)
+        all_shops = get_all_barbershops()
+        current_shop_id = get_barber_shop_id(user_id)
+        promo = get_user_promo(user_id)
+        return render_template("pages/dashboard.html", barber=barber, all_shops=all_shops, current_shop_id=current_shop_id, promo=promo)

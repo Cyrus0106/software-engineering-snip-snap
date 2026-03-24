@@ -7,6 +7,11 @@
 {% if not barber %}
   <p>Could not load barber profile data.</p>
 {% else %}
+
+  {% if error %}
+    <p style="color:#b00020;"><strong>{{ error }}</strong></p>
+  {% endif %}
+
   <p>
     Public link:
     <a href="{{ url_for('barber_profile', barber_id=barber.user_id) }}">
@@ -14,20 +19,55 @@
     </a>
   </p>
 
-  <form method="post" action="{{ url_for('dashboard') }}">
+  <form method="post" action="{{ url_for('dashboard') }}" enctype="multipart/form-data">
+
+    <h2>Profile Picture</h2>
+    {% if promo and promo.profile_image_url %}
+      <img src="{{ promo.profile_image_url }}" alt="Profile picture"
+           style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:block;margin-bottom:8px;" />
+    {% endif %}
+    <label for="profile_picture">Upload new picture (JPG, PNG or WebP, max 5 MB)</label><br />
+    <input type="file" id="profile_picture" name="profile_picture"
+           accept="image/jpeg,image/png,image/webp" /><br /><br />
+
+    <h2>Display Name</h2>
     <label for="username">Display name</label><br />
     <input id="username" name="username" value="{{ barber.username or '' }}" /><br /><br />
 
+    <h2>Barbershop</h2>
+    <label for="barbershop_action">Action</label><br />
+    <select id="barbershop_action" name="barbershop_action"
+            onchange="document.getElementById('new-shop-fields').style.display = this.value === 'new' ? 'block' : 'none'">
+      <option value="existing">Select existing barbershop</option>
+      <option value="new">Create new barbershop</option>
+    </select><br /><br />
+
+    <label for="barbershop_id">Barbershop</label><br />
+    <select id="barbershop_id" name="barbershop_id">
+      <option value="">-- None --</option>
+      {% for shop in all_shops %}
+        <option value="{{ shop.barbershop_id }}"
+          {% if shop.barbershop_id == current_shop_id %}selected{% endif %}>
+          {{ shop.name }}{% if shop.postcode %} ({{ shop.postcode }}){% endif %}
+        </option>
+      {% endfor %}
+    </select><br /><br />
+
+    <div id="new-shop-fields" style="display:none;">
+      <label for="new_shop_name">New barbershop name</label><br />
+      <input id="new_shop_name" name="new_shop_name" placeholder="e.g. Sharp Cuts" /><br /><br />
+      <label for="new_shop_postcode">Postcode</label><br />
+      <input id="new_shop_postcode" name="new_shop_postcode" placeholder="e.g. PO1 1AA" /><br /><br />
+    </div>
+
+    <h2>Location</h2>
     <label for="postcode">Postcode</label><br />
-    <input id="postcode" name="postcode" value="{{ barber.postcode or '' }}" /><br /><br />
-
-    <label for="location_lat">Latitude</label><br />
-    <input id="location_lat" name="location_lat" value="{{ barber.location_lat if barber.location_lat is not none else '' }}" /><br /><br />
-
-    <label for="location_lng">Longitude</label><br />
-    <input id="location_lng" name="location_lng" value="{{ barber.location_lng if barber.location_lng is not none else '' }}" /><br /><br />
+    <input id="postcode" name="postcode" value="{{ barber.postcode or '' }}"
+           placeholder="e.g. PO1 1AA" /><br />
+    <small>Your location will be set automatically from your postcode.</small><br /><br />
 
     <button type="submit">Save</button>
   </form>
+
 {% endif %}
 {% endblock %}

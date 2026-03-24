@@ -11,6 +11,19 @@ def get_supabase():
         _supabase = create_client(url, key)
     return _supabase
 
+def upload_profile_photo(user_id: int, file_bytes: bytes, content_type: str) -> str:
+    """
+    Upload a profile photo to Supabase storage.
+    Returns the storage path (e.g. 'profiles/7/profile.jpg').
+    """
+    bucket = os.environ.get("SUPABASE_STORAGE_BUCKET", "haircuts")
+    ext = "jpg" if "jpeg" in content_type else content_type.split("/")[-1]
+    path = f"profiles/{user_id}/profile.{ext}"
+    sb = get_supabase()
+    sb.storage.from_(bucket).upload(path, file_bytes, {"content-type": content_type, "upsert": "true"})
+    return path
+
+
 def sign_storage_path(path: str, expires_in: int = 3600) -> str | None:
     """
     Given a storage path like 'barber_12/photo_987.jpg', returns a signed URL.

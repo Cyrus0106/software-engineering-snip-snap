@@ -380,6 +380,64 @@ def update_barber_profile(user_id: int, username: str | None, postcode: str | No
         conn.commit()
 
 
+def get_all_barbershops():
+    """Return all barbershops for the dashboard dropdown."""
+    with _get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT barbershop_id, name, postcode FROM Barbershop ORDER BY name")
+            rows = cur.fetchall()
+    return [{"barbershop_id": r[0], "name": r[1], "postcode": r[2] or ""} for r in rows]
+
+
+def get_barber_shop_id(user_id: int):
+    """Get the current barbershop_id for a barber."""
+    with _get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT barbershop_id FROM Barber WHERE user_id = %s", (user_id,))
+            row = cur.fetchone()
+    return row[0] if row else None
+
+
+def update_barber_shop(user_id: int, barbershop_id: int) -> None:
+    """Update which barbershop a barber works at. Creates a Barber row if one doesn't exist."""
+    with _get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO Barber (user_id, barbershop_id)
+                VALUES (%s, %s)
+                ON CONFLICT (user_id) DO UPDATE SET barbershop_id = EXCLUDED.barbershop_id
+                """,
+                (user_id, barbershop_id),
+            )
+        conn.commit()
+
+
+def create_barbershop(name: str, postcode: str) -> int:
+    """Create a new barbershop and return its barbershop_id."""
+    with _get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO Barbershop (name, postcode) VALUES (%s, %s) RETURNING barbershop_id",
+                (name, postcode or None),
+            )
+            shop_id = cur.fetchone()[0]
+        conn.commit()
+    return shop_id
+
+
+def upsert_profile_photo(user_id: int, image_url: str) -> None:
+    """Insert or replace the profile photo record for a user."""
+    with _get_conn() as conn:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM ProfilePhoto WHERE user_id = %s", (user_id,))
+            cur.execute(
+                "INSERT INTO ProfilePhoto (user_id, image_url) VALUES (%s, %s)",
+                (user_id, image_url),
+            )
+        conn.commit()
+
+
 def filter_existing_tag_ids(tag_ids: List[int]) -> List[int]:
     if not tag_ids:
         return []
