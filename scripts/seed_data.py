@@ -45,11 +45,44 @@ def get_sb():
     )
 
 
+UNSPLASH_KEY = os.environ.get("UNSPLASH_ACCESS_KEY")
+UNSPLASH_QUERIES = ["haircut", "barber fade", "mens haircut", "barbershop", "hair fade"]
+_unsplash_cache: list = []
+
+def _fetch_unsplash_pool():
+    """Fetch a pool of haircut image URLs from Unsplash."""
+    global _unsplash_cache
+    for query in UNSPLASH_QUERIES:
+        resp = requests.get(
+            "https://api.unsplash.com/search/photos",
+            params={"query": query, "per_page": 30, "orientation": "portrait"},
+            headers={"Authorization": f"Client-ID {UNSPLASH_KEY}"},
+            timeout=15,
+        )
+        if resp.ok:
+            for item in resp.json().get("results", []):
+                url = item["urls"].get("regular")
+                w = item.get("width", 400)
+                h = item.get("height", 600)
+                if url:
+                    _unsplash_cache.append((url, w, h))
+    random.shuffle(_unsplash_cache)
+    print(f"  Unsplash pool: {len(_unsplash_cache)} images loaded.")
+
+
 def upload_image(sb, barber_id: int, img_index: int):
-    """Download a seeded image from picsum and upload to Supabase storage."""
-    w, h = 400, 600
-    seed = barber_id * 100 + img_index
-    resp = requests.get(f"https://picsum.photos/seed/{seed}/{w}/{h}", timeout=20)
+    """Download a haircut image and upload to Supabase storage."""
+    if UNSPLASH_KEY:
+        if not _unsplash_cache:
+            _fetch_unsplash_pool()
+        url, w, h = _unsplash_cache[(barber_id * 20 + img_index) % len(_unsplash_cache)]
+    else:
+        # Fallback to picsum if no Unsplash key
+        w, h = 400, 600
+        seed = barber_id * 100 + img_index
+        url = f"https://picsum.photos/seed/{seed}/{w}/{h}"
+
+    resp = requests.get(url, timeout=20)
     resp.raise_for_status()
     path = f"barber_{barber_id}/{uuid.uuid4()}.jpg"
     try:
@@ -277,8 +310,8 @@ def run(dry_run: bool = False):
                 rating = random.choices([3, 4, 5], weights=[1, 3, 6])[0]
                 comment = random.choice(REVIEW_COMMENTS)
                 cur.execute(
-                    "INSERT INTO review (barber_profile_id, customer_user_id, rating, comment) VALUES (%s, %s, %s, %s)",
-                    (barber_id, cust_id, rating, comment),
+                    "INSERT INTO review (target_barber_id, user_id, text, rating, status) VALUES (%s, %s, %s, %s, 'show')",
+                    (barber_id, cust_id, comment, rating),
                 )
             conn.commit()
     print(f"  ->~{total_reviews} total reviews")
