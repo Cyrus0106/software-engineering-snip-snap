@@ -146,7 +146,7 @@ def _make_next_cursor(items):
 def gallery_posts():
     payload = request.get_json(silent=True) or {}
 
-    ALLOWED_SORTS = {"most_recent", "nearest", "highest_rated"}
+    ALLOWED_SORTS = {"most_recent", "nearest", "closest", "highest_rated", "blended"}
 
     raw_tag_ids = payload.get("tag_ids") or []
     raw_barber_ids = payload.get("barber_ids") or []
