@@ -9,7 +9,7 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/timetable.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/barberGallery.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/barber_profile.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/review_widget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/review-widget.css') }}">
 {% endblock %}
 // show error message if an error occurred 
 {% block content %}
@@ -81,7 +81,7 @@
 <script type="module">
   import { initBarberProfile } from "{{ url_for('static', filename='js/pages/barber_profile.js') }}";
   import { ReviewWidget } from "{{ url_for('static', filename='js/components/review_widget.js') }}";
-    window.widget = new ReviewWidget('review-widget-mount');
+    window.widget = new ReviewWidget('review-widget-mount', {{ barber.barber_id }});
 
   initBarberProfile({
     userId: {{ barber.user_id }},
