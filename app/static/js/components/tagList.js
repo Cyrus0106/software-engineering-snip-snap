@@ -24,7 +24,7 @@ export class TagList {
 
   add_item(item) {
     if (!item || typeof item.id !== "number" || typeof item.type !== "string") return;
-    this.items.push({ id: item.id, type: item.type, label: item.label });
+    this.items.push({ id: item.id, type: item.type, label: item.label ?? null });
     this.render();
     this._emitChange();
   }
