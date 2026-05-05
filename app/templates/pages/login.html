@@ -13,19 +13,23 @@
       <p class="login-card__subtitle">Sign in to continue to Snip-Snap.</p>
     </div>
 
+    <!-- Email field — uses type="email" so the browser validates the format before the form is submitted -->
     <form id="loginForm" class="login-form">
       <div class="login-field">
         <label class="login-label" for="email">Email</label>
         <input class="login-input" id="email" type="email" required autocomplete="email" placeholder="your@email.com">
+        <!-- Empty error paragraph populated by login.js if email validation fails -->
         <p id="emailError" class="field-error"></p>
       </div>
 
+      <!-- Password field — autocomplete="current-password" allows the browser and password managers to autofill correctly -->
       <div class="login-field">
         <label class="login-label" for="password">Password</label>
         <input class="login-input" id="password" type="password" required autocomplete="current-password" placeholder="Your password">
+        <!-- Empty error paragraph populated by login.js if password validation fails -->
         <p id="passwordError" class="field-error"></p>
       </div>
-
+<!-- General error paragraph used for errors that are not specific to a single field, for example incorrect credentials -->
       <div class="login-field">
         <p id="generalError" class="field-error"></p>
       </div>
