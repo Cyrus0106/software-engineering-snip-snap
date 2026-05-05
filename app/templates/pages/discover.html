@@ -19,11 +19,14 @@
       </div>
 
       <div class="discover-actions">
+    <!-- Mount point for the SearchAutocomplete JS component -->
         <div id="searchBarMount" class="discover-search"></div>
+   <!-- Mount point for the TagList JS component which shows active filters the customer has selected -->  
         <div id="tagListMount" class="discover-taglist"></div>
       </div>
-
-      <div id="postGalleryMount" class="galleryGrid"></div>
+  <!-- Mount point for the GalleryGrid JS component which renders the infinite scroll feed of barber post images -->
+      <div id="postGalleryMount" class="galleryGrid" style="margin-top: 8px;"></div>
+  <!-- Sentinel element, which triggers next batch of posts to load automatically -->
       <div id="postGallerySentinel"></div>
 
     </section>
@@ -34,6 +37,8 @@
   <script>
     window.__VIEWER_LOC__ = {{ viewer_loc|tojson }};
   </script>
+<!-- Load the SearchAutocomplete component before the page module so it is available when discover.js initialises -->
   <script src="{{ url_for('static', filename='js/components/searchAutocomplete.js') }}"></script>
+<!-- Main discover page module — initialises all components including the gallery grid, tag list and infinite scroll behaviour -->
   <script type="module" src="{{ url_for('static', filename='js/pages/discover.js') }}"></script>
 {% endblock %}
