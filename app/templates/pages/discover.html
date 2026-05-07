@@ -24,7 +24,17 @@
         <div id="tagListMount" class="discover-taglist"></div>
       </div>
   <!-- Mount point for the GalleryGrid JS component which renders the infinite scroll feed of barber post images -->
-      <div id="postGalleryMount" class="galleryGrid" style="margin-top: 8px;"></div>
+      <div id="postGalleryMount" class="galleryGrid" style="margin-top: 8px;">
+        <!-- Skeleton placeholder shown while posts are loading-->
+          <div id="gallerySkeleton" class="gallery-skeleton">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          </div>
+      </div>
   <!-- Sentinel element, which triggers next batch of posts to load automatically -->
       <div id="postGallerySentinel"></div>
     </section>
