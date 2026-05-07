@@ -171,6 +171,12 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
     } finally {
       state.loading = false;
       setLoadingVisible(false);
+
+      // Remove the skeleton placeholder now that the first batch of posts
+      // has loaded — whether successful or not, the skeleton is no longer needed
+      const skeleton = document.getElementById("gallerySkeleton");
+      if (skeleton) skeleton.remove();
+      
       render();
     }
   }
