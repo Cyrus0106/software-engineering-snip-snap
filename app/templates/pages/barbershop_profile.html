@@ -8,15 +8,15 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/timetable.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/components/barberGallery.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/barbershop_profile.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/components/review_widget.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/components/review-widget.css') }}">
 {% endblock %}
-
+ <!-- Show error banner if the Flask route passed an error message, for example if the barbershop ID was not found in the database -->
 {% block content %}
 <div class="barbershop-container">
   {% if error %}
     <div class="barbershop__error">{{ error }}</div>
   {% endif %}
-
+<!-- Show a fallback message if no shop data was returned from the database, to prevent rendering a broken empty page -->
   {% if not shop %}
     <div class="barbershop__empty">No barbershop found</div>
   {% else %}
@@ -68,6 +68,7 @@
           {% for barber in shop.barbers %}
             <div class="barbershop__barber-card">
               <div class="barbershop__barber-promo" id="promo-{{ barber.user_id or loop.index }}"></div>
+<!-- Link takes the customer to this barber's full profile page -->
               <a href="{{ url_for('barber_profile', barber_id=barber.user_id) }}" class="barbershop__barber-link">
                 View Profile
               </a>
@@ -75,6 +76,7 @@
           {% endfor %}
         </div>
       {% else %}
+<!-- Fallback shown when no barbers have been added to this shop yet -->
         <p class="barbershop__no-barbers">No barbers listed yet</p>
       {% endif %}
     </section>
@@ -93,12 +95,14 @@
 {% endblock %}
 
 {% block scripts %}
+<!-- Load Leaflet.js map library and the custom mapWidget component -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{{ url_for('static', filename='js/components/mapWidget.js') }}"></script>
 {% if shop %}
 <script type="module">
   import { initBarbershopProfile } from "{{ url_for('static', filename='js/pages/barbershop_profile.js') }}";
   import { ReviewWidget } from "{{ url_for('static', filename='js/components/review_widget.js') }}";
+  // Mount the ReviewWidget component to its placeholder div
     window.widget = new ReviewWidget('review-widget-mount');
 
   initBarbershopProfile({
@@ -106,6 +110,7 @@
     barbers: {{ shop.barbers|tojson if shop.barbers else '[]' }},
     shopData: {
       name: "{{ shop.name }}",
+    // Coordinates default to null if not set to prevent JS errors
       location_lat: {{ shop.location_lat if shop.location_lat is not none else 'null' }},
       location_lng: {{ shop.location_lng if shop.location_lng is not none else 'null' }}
     },

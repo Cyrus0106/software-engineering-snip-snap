@@ -10,10 +10,11 @@
 
 {% block content %}
 <div id="map-wrapper">
+  <!-- The main Leaflet map container — Leaflet.js renders the interactive map tiles and barbershop pins into this div -->
   <div id="map"></div>
-
+<!-- Mount point for the SearchAutocomplete component which allows customers to search for barbershops by name or location -->
   <div id="map-search-bar"></div>
-
+<!-- Button that opens the location modal so the customer can set or update their current location on the map -->
   <button id="my-location-btn">My Location</button>
 
   <div id="location-modal" class="hidden">
@@ -29,7 +30,9 @@
         placeholder="Enter postcode or address"
         autocomplete="off"
       />
+      <!-- Geocodes the typed address and recentres the map to that location -->
       <button id="set-location-btn">Set Location</button>
+      <!-- Uses the browser's Geolocation API to get the customer's current GPS coordinates and recentre the map automatically -->
       <button id="use-current-location-btn">Use Current Location</button>
     </div>
   </div>

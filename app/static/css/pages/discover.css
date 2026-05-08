@@ -174,3 +174,30 @@
   cursor: pointer !important;
   font-weight: 700 !important;
 }
+
+/* Skeleton loading cards shown before posts have loaded */
+.gallery-skeleton {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.skeleton-card {
+  aspect-ratio: 3 / 4;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-color-scheme: dark) {
+  .skeleton-card {
+    background: linear-gradient(90deg, #2b2f37 25%, #3a404b 50%, #2b2f37 75%);
+    background-size: 200% 100%;
+  }
+}

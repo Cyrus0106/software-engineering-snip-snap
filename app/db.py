@@ -171,7 +171,8 @@ def get_barber_public_by_user_id(user_id: int):
                 """
                 SELECT u.user_id, u.username, u.location_lat, u.location_lng,
                        u.postcode, u.role,
-                       bs.location_lat AS shop_lat, bs.location_lng AS shop_lng, bs.website, bs.postcode AS shop_postcode
+                       bs.location_lat AS shop_lat, bs.location_lng AS shop_lng, bs.website, bs.postcode AS shop_postcode,
+                       b.barber_id
                 FROM App_User u
                 LEFT JOIN Barber b ON b.user_id = u.user_id
                 LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id
@@ -199,6 +200,7 @@ def get_barber_public_by_user_id(user_id: int):
         "shop_lng": row[7],
         "website": row[8],
         "shop_postcode": row[9],
+        "barber_id": row[10],
     }
 
 
@@ -858,30 +860,31 @@ def update_barber_barbershop(user_id: int, barbershop_id: int) -> None:
 
 
 
-def get_reviews_for_barber(barber_profile_id: int):
-    """Fetch all reviews for a specific barber from the database."""
+def get_reviews_for_barber(barber_id: int):
+    """Fetch all reviews (and replies) for a specific barber from the database."""
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(
                 """
-                SELECT r.review_id, r.rating, r.comment, r.created_at, u.username
-                FROM Reviews r
-                JOIN Users u ON r.customer_user_id = u.user_id
-                WHERE r.barber_profile_id = %s
-                ORDER BY r.created_at DESC
+                SELECT r.review_id, r.parent_review_id, r.rating, r.text, r.created_at, u.username
+                FROM review r
+                JOIN App_User u ON u.user_id = r.user_id
+                WHERE r.target_barber_id = %s
+                  AND r.status = 'show'
+                ORDER BY r.created_at ASC
                 """,
-                (barber_profile_id,),
+                (barber_id,),
             )
             return cur.fetchall()
 
 def submit_barber_review(barber_id: int, customer_id: int, rating: int, comment: str):
-    """Insert a new review into the Reviews table."""
+    """Insert a new review into the review table."""
     with _get_conn() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO Reviews (barber_profile_id, customer_user_id, rating, comment)
-                VALUES (%s, %s, %s, %s)
+                INSERT INTO review (target_barber_id, user_id, rating, text, status)
+                VALUES (%s, %s, %s, %s, 'show')
                 RETURNING review_id
                 """,
                 (barber_id, customer_id, rating, comment),
