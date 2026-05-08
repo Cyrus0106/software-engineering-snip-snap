@@ -60,17 +60,17 @@ input.addEventListener("change", function () {
 
         // only images
         if (!file.type.startsWith("image/")) continue;
-
+        // Create a FileReader to read the image file and display it 
         const reader = new FileReader();
 
         reader.onload = function (e) {
 
             const box = document.createElement("div");
             box.className = "image-box";
-
+            // Set the file name in a data attribute for duplicate checking 
             const img = document.createElement("img");
             img.src = e.target.result;
-
+            // Store the file name in a data attribute for duplicate checking
             const removeBtn = document.createElement("button");
             removeBtn.innerHTML = "×";
             removeBtn.className = "remove-btn";
