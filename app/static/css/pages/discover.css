@@ -8,7 +8,7 @@
   --discover-shadow: var(--login-shadow, 0 20px 50px rgba(15, 23, 42, 0.08));
 }
 
-.login-page {
+.discover-page {
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -18,7 +18,7 @@
     var(--discover-bg);
 }
 
-.login-card {
+.discover-card {
   width: 100%;
   max-width: 1100px;
   background: var(--discover-surface);
