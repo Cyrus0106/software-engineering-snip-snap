@@ -75,13 +75,13 @@
     --discover-shadow: var(--login-shadow, 0 24px 60px rgba(0, 0, 0, 0.35));
   }
 
-  .login-page {
+  .discover-page {
     background:
       radial-gradient(circle at top left, rgba(245, 158, 11, 0.10), transparent 30%),
       var(--discover-bg);
   }
 
-  .login-card,
+  .discover-card,
   .discover-search,
   .discover-taglist,
   .postImageCard {
