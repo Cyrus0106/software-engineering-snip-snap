@@ -20,18 +20,40 @@
         <div class="sidebar-brand">✂</div>
 
         <nav>
-          <a href="{{ url_for('discover') }}" class="sidebar-link sidebar-discover">Discover</a>
-          <a href="{{ url_for('map_page') }}" class="sidebar-link sidebar-map">Map</a>
+          <a href="{{ url_for('discover') }}"
+   class="sidebar-link sidebar-discover {% if request.endpoint == 'discover' %}is-active{% endif %}"
+   aria-label="Discover">
+  <span class="sr-only">Discover</span>
+</a>
 
-          {% if u.get('role') in ['customer', 'barber'] %}
-            <a href="{{ url_for('profile') }}" class="sidebar-link sidebar-profile">My Profile</a>
-          {% endif %}
+<a href="{{ url_for('map_page') }}"
+   class="sidebar-link sidebar-map {% if request.endpoint == 'map_page' %}is-active{% endif %}"
+   aria-label="Map">
+  <span class="sr-only">Map</span>
+</a>
 
-          {% if u.get('role') == 'barber' %}
-            <a href="{{ url_for('dashboard') }}" class="sidebar-link sidebar-dashboard">Dashboard</a>
-          {% endif %}
+{% if u.get('role') in ['customer', 'barber'] %}
+  <a href="{{ url_for('profile') }}"
+     class="sidebar-link sidebar-profile {% if request.endpoint == 'profile' %}is-active{% endif %}"
+     aria-label="My Profile">
+    <span class="sr-only">My Profile</span>
+  </a>
+{% endif %}
 
-          <a href="{{ url_for('logout') }}" class="sidebar-link sidebar-logout">Logout</a>
+{% if u.get('role') == 'barber' %}
+  <a href="{{ url_for('dashboard') }}"
+     class="sidebar-link sidebar-dashboard {% if request.endpoint == 'dashboard' %}is-active{% endif %}"
+     aria-label="Dashboard">
+    <span class="sr-only">Dashboard</span>
+  </a>
+{% endif %}
+
+<a href="{{ url_for('logout') }}"
+   class="sidebar-link sidebar-logout"
+   aria-label="Logout">
+  <span class="sr-only">Logout</span>
+</a>
+
         </nav>
       </aside>
 
