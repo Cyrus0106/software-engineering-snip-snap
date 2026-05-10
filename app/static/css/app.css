@@ -97,6 +97,18 @@ input, textarea, select { width: 100%; padding: 10px; border: 1px solid #d9d9d9;
   background: #eff6ff;
   border-color: #bfdbfe;
 }
+.sidebar-link.is-active {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+}
+
+.sidebar-link.is-active:hover {
+  transform: none;
+  background: #111827;
+}
+
 
 .sidebar-link .sr-only {
   position: absolute;
@@ -149,3 +161,4 @@ input, textarea, select { width: 100%; padding: 10px; border: 1px solid #d9d9d9;
     border-color: #4b5563;
   }
 }
+
