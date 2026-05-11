@@ -16,19 +16,19 @@
           document.body.innerText = "Could not establish session. Try logging in again.";
           return;
         }
-
+// send access token to flask endpoint
         const res = await fetch("{{ url_for('auth_callback') }}", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ access_token: data.session.access_token }),
         });
-
+// if token is rejected, display error and stop 
         const json = await res.json();
         if (!json.ok) {
           document.body.innerText = "Server auth failed: " + (json.error || "unknown error");
           return;
         }
-
+// if token is successful, user is redirected 
         window.location.href = "{{ url_for('discover') }}";
       }
 

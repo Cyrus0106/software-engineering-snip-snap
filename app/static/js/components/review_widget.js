@@ -1,12 +1,28 @@
 export class ReviewWidget {
-    constructor(containerId) {
+    constructor(containerId, barberId) {
         this.container = document.getElementById(containerId);
-        this.reviews = [
-            { name: "@JoeBingley", rating: 4, text: "Lovely spot, great atmosphere!", images: [], replies: ["Thanks Joe!"] },
-            { name: "@AlfredC", rating: 2, text: "Wait time was too long.", images: ["photo1.jpg"], replies: [] }
-        ];
+        this.barberId = barberId;
+        this.reviews = [];
         this.selectedRating = 0;
         this.renderBase();
+        this.loadReviews();
+    }
+
+    async loadReviews() {
+        if (!this.barberId) {
+            this.reviews = [];
+            this.renderReviews();
+            return;
+        }
+        try {
+            const res = await fetch(`/api/reviews/${this.barberId}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            this.reviews = Array.isArray(data) ? data : [];
+        } catch (e) {
+            this.reviews = [];
+            console.error("Failed to load reviews:", e);
+        }
         this.renderReviews();
     }
 
@@ -17,19 +33,18 @@ export class ReviewWidget {
                     <span>Reviews</span>
                     <div class="add-review-btn" id="openModal">＋</div>
                 </div>
-                <div class="review-list" id="reviewList"></div>
+                <div class="review-list" id="reviewList"><p class="review-loading">Loading reviews…</p></div>
             </div>
-            <div class="modal-overlay" id="modal">
+            <div class="modal-overlay" id="modal" style="display:none">
                 <div class="modal-content">
-                    <div class="modal-title">Upload a review</div>
+                    <div class="modal-title">Leave a review</div>
                     <div class="star-input" id="starInput">
                         <span data-v="1">★</span><span data-v="2">★</span><span data-v="3">★</span><span data-v="4">★</span><span data-v="5">★</span>
                     </div>
                     <textarea id="reviewText" placeholder="Describe your experience..."></textarea>
-                    <div class="photo-label">Attach photos:</div>
-                    <input type="file" id="imageInput" multiple accept="image/*">
+                    <p class="modal-error" id="modalError" style="display:none;color:red;font-size:13px;"></p>
                     <div class="modal-btns">
-                        <button class="btn-upload" id="submitReview">Upload</button>
+                        <button class="btn-upload" id="submitReview">Submit</button>
                         <button class="btn-cancel" id="closeModal">Cancel</button>
                     </div>
                 </div>
@@ -40,7 +55,12 @@ export class ReviewWidget {
 
     setupEventListeners() {
         const modal = this.container.querySelector("#modal");
-        this.container.querySelector("#openModal").onclick = () => modal.style.display = "flex";
+        const errorEl = this.container.querySelector("#modalError");
+
+        this.container.querySelector("#openModal").onclick = () => {
+            errorEl.style.display = "none";
+            modal.style.display = "flex";
+        };
         this.container.querySelector("#closeModal").onclick = () => {
             modal.style.display = "none";
             this.resetModal();
@@ -50,85 +70,95 @@ export class ReviewWidget {
         stars.forEach(s => {
             s.onclick = () => {
                 this.selectedRating = parseInt(s.dataset.v);
-                stars.forEach(st => st.classList.toggle("active", st.dataset.v <= this.selectedRating));
+                stars.forEach(st => st.classList.toggle("active", parseInt(st.dataset.v) <= this.selectedRating));
             };
         });
 
-        this.container.querySelector("#submitReview").onclick = () => {
-            const text = this.container.querySelector("#reviewText").value;
-            const files = this.container.querySelector("#imageInput").files;
-            if(!text || this.selectedRating === 0) return alert("Please add rating and text");
-            
-            this.reviews.unshift({
-                name: "@You",
-                rating: this.selectedRating,
-                text: text,
-                images: Array.from(files).map(f => f.name),
-                replies: []
-            });
-            modal.style.display = "none";
-            this.resetModal();
-            this.renderReviews();
+        this.container.querySelector("#submitReview").onclick = async () => {
+            const text = this.container.querySelector("#reviewText").value.trim();
+            errorEl.style.display = "none";
+
+            if (!text || this.selectedRating === 0) {
+                errorEl.textContent = "Please select a star rating and write a comment.";
+                errorEl.style.display = "block";
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/reviews/submit", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ barber_id: this.barberId, rating: this.selectedRating, comment: text }),
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.error || "Submission failed");
+                modal.style.display = "none";
+                this.resetModal();
+                await this.loadReviews();
+            } catch (e) {
+                errorEl.textContent = e.message.includes("login") || e.message.includes("401")
+                    ? "You must be logged in to leave a review."
+                    : e.message || "Could not submit review.";
+                errorEl.style.display = "block";
+            }
         };
     }
 
     resetModal() {
         this.selectedRating = 0;
         this.container.querySelector("#reviewText").value = "";
-        this.container.querySelector("#imageInput").value = "";
         this.container.querySelectorAll("#starInput span").forEach(s => s.classList.remove("active"));
     }
 
     renderReviews() {
         const list = this.container.querySelector("#reviewList");
-        list.innerHTML = this.reviews.map((rev, i) => `
-            <div class="review-card">
-                <div class="review-name">${rev.name}</div>
-                <div class="review-stars">${"★".repeat(rev.rating)}${"☆".repeat(5-rev.rating)}</div>
-                <div class="review-text">${rev.text}</div>
-                ${rev.images.length ? `<div class="img-row">${rev.images.map(img => `<span class="img-tag">🖼️ ${img}</span>`).join("")}</div>` : ""}
-                <div class="faded-actions">
-                    <span onclick="document.getElementById('replyArea${i}').style.display='flex'">Reply</span>
-                    <span onclick="document.getElementById('editArea${i}').style.display='flex'">Edit</span>
+
+        if (this.reviews.length === 0) {
+            list.innerHTML = "<p>No reviews yet. Be the first!</p>";
+            return;
+        }
+
+        // Group replies under their parent reviews
+        const topLevel = this.reviews.filter(r => !r.parent_review_id);
+        const repliesMap = {};
+        this.reviews.filter(r => r.parent_review_id).forEach(r => {
+            if (!repliesMap[r.parent_review_id]) repliesMap[r.parent_review_id] = [];
+            repliesMap[r.parent_review_id].push(r);
+        });
+
+        list.innerHTML = topLevel.map(rev => {
+            const replies = repliesMap[rev.review_id] || [];
+            const starsHtml = rev.rating
+                ? `<div class="review-stars">${"★".repeat(rev.rating)}${"☆".repeat(5 - rev.rating)}</div>`
+                : "";
+            const repliesHtml = replies.map(rep => `
+                <div class="reply-item">
+                    <span class="review-name">${this._esc(rep.username)}</span>
+                    <div class="review-text">${this._esc(rep.text)}</div>
                 </div>
-                <div class="input-box" id="editArea${i}" style="display:none">
-                    <textarea id="editInput${i}">${rev.text}</textarea>
-                    <button class="btn-save" onclick="window.widget.saveEdit(${i})">Save Changes</button>
+            `).join("");
+
+            return `
+                <div class="review-card">
+                    <div class="review-name">${this._esc(rev.username)}</div>
+                    ${starsHtml}
+                    <div class="review-text">${this._esc(rev.text)}</div>
+                    ${repliesHtml ? `<div class="replies-list">${repliesHtml}</div>` : ""}
                 </div>
-                <div class="input-box" id="replyArea${i}" style="display:none">
-                    <textarea id="replyInput${i}" placeholder="Write a reply..."></textarea>
-                    <button class="btn-save" onclick="window.widget.addReply(${i})">Post Reply</button>
-                </div>
-                <div class="replies-list">
-                    ${rev.replies.map((rep, ri) => `
-                        <div class="reply-item">
-                            <div>${rep}</div>
-                            <div class="faded-actions" style="font-size:11px">
-                                <span onclick="document.getElementById('editRep${i}_${ri}').style.display='flex'">Edit</span>
-                            </div>
-                            <div class="input-box" id="editRep${i}_${ri}" style="display:none">
-                                <textarea id="editRepInp${i}_${ri}">${rep}</textarea>
-                                <button class="btn-save" onclick="window.widget.saveReply(${i}, ${ri})">Save</button>
-                            </div>
-                        </div>
-                    `).join("")}
-                </div>
-            </div>
-        `).join("");
+            `;
+        }).join("");
     }
 
-    saveEdit(i) {
-        this.reviews[i].text = document.getElementById(`editInput${i}`).value;
-        this.renderReviews();
+    _esc(str) {
+        if (!str) return "";
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;");
     }
+}
 
-    addReply(i) {
-        const txt = document.getElementById(`replyInput${i}`).value;
-        if(txt) { this.reviews[i].replies.push(txt); this.renderReviews(); }
-    }
-
-    saveReply(i, ri) {
-        this.reviews[i].replies[ri] = document.getElementById(`editRepInp${i}_${ri}`).value;
-        this.renderReviews();
-    }
+if (typeof window !== "undefined") {
+    window.ReviewWidget = ReviewWidget;
 }

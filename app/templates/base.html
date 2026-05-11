@@ -1,36 +1,70 @@
 <!doctype html>
 <html lang="en-GB">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <title>{% block title %}App{% endblock %}</title>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-    {% block styles %}  
-    {% endblock %}
+
+    {% block styles %}{% endblock %}
   </head>
+
   <body>
     {% set u = session.get("user") %}
+
     {% if u %}
       <aside class="sidebar">
-        <div class="sidebar-brand" aria-hidden="true">✂</div>
-        <a href="{{ url_for('discover') }}" class="sidebar-link sidebar-discover"><span class="sr-only">Discover</span></a>
-        <a href="{{ url_for('map_page') }}" class="sidebar-link sidebar-map"><span class="sr-only">Map</span></a>
-        {% if u.get('role') in ['customer', 'barber'] %}
-          <a href="{{ url_for('profile') }}" class="sidebar-link sidebar-profile"><span class="sr-only">My profile</span></a>
-        {% endif %}
-        {% if u.get('role') == 'barber' %}
-          <a href="{{ url_for('dashboard') }}" class="sidebar-link sidebar-dashboard"><span class="sr-only">Dashboard</span></a>
-        {% endif %}
-        <a href="{{ url_for('logout') }}" class="sidebar-link sidebar-logout"><span class="sr-only">Logout</span></a>
+        <div class="sidebar-brand">✂</div>
+
+        <nav>
+          <a href="{{ url_for('discover') }}"
+   class="sidebar-link sidebar-discover {% if request.endpoint == 'discover' %}is-active{% endif %}"
+   aria-label="Discover">
+  <span class="sr-only">Discover</span>
+</a>
+
+<a href="{{ url_for('map_page') }}"
+   class="sidebar-link sidebar-map {% if request.endpoint == 'map_page' %}is-active{% endif %}"
+   aria-label="Map">
+  <span class="sr-only">Map</span>
+</a>
+
+{% if u.get('role') in ['customer', 'barber'] %}
+  <a href="{{ url_for('profile') }}"
+     class="sidebar-link sidebar-profile {% if request.endpoint == 'profile' %}is-active{% endif %}"
+     aria-label="My Profile">
+    <span class="sr-only">My Profile</span>
+  </a>
+{% endif %}
+
+{% if u.get('role') == 'barber' %}
+  <a href="{{ url_for('dashboard') }}"
+     class="sidebar-link sidebar-dashboard {% if request.endpoint == 'dashboard' %}is-active{% endif %}"
+     aria-label="Dashboard">
+    <span class="sr-only">Dashboard</span>
+  </a>
+{% endif %}
+
+<a href="{{ url_for('logout') }}"
+   class="sidebar-link sidebar-logout"
+   aria-label="Logout">
+  <span class="sr-only">Logout</span>
+</a>
+
+        </nav>
       </aside>
+
       <main class="content-with-sidebar">
     {% else %}
       <main class="content-full">
     {% endif %}
-      {% block content %}{% endblock %}
-      {% block scripts %}
-      {% endblock %}
-    </main>
+
+        {% block content %}{% endblock %}
+
+        {% block scripts %}{% endblock %}
+      </main>
   </body>
 </html>

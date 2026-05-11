@@ -24,7 +24,7 @@ export class TagList {
 
   add_item(item) {
     if (!item || typeof item.id !== "number" || typeof item.type !== "string") return;
-    this.items.push({ id: item.id, type: item.type });
+    this.items.push({ id: item.id, type: item.type, label: item.label ?? null });
     this.render();
     this._emitChange();
   }
@@ -68,12 +68,12 @@ export class TagList {
       li.style.padding = "4px 10px";
 
       const text = document.createElement("span");
-      text.textContent = `${item.type}:${item.id}`;
+      text.textContent = item.label ?? `${item.type}:${item.id}`;
 
       const btn = document.createElement("button");
       btn.type = "button";
       btn.textContent = "×";
-      btn.setAttribute("aria-label", `Remove ${item.type}:${item.id}`);
+      btn.setAttribute("aria-label", `Remove ${item.label ?? item.id}`);
       btn.style.border = "none";
       btn.style.background = "transparent";
       btn.style.cursor = "pointer";

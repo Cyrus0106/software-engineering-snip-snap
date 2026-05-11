@@ -359,17 +359,29 @@ function resetEditPhotoForm() {
   document.getElementById('editPhotoSuccessMessage').classList.remove('show');
 }
 
+function showEditPhotoToast(message, type = 'success') {
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.textContent = message;
+
+  stack.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
 function showEditPhotoError(message) {
-  const errorEl = document.getElementById('editPhotoErrorMessage');
-  errorEl.textContent = message;
-  errorEl.classList.add('show');
+  showEditPhotoToast(message, 'error');
 }
 
 function showEditPhotoSuccess(message) {
-  const successEl = document.getElementById('editPhotoSuccessMessage');
-  successEl.textContent = message;
-  successEl.classList.add('show');
+  showEditPhotoToast(message, 'success');
 }
+
 
 function hideEditPhotoMessages() {
   document.getElementById('editPhotoErrorMessage').classList.remove('show');
