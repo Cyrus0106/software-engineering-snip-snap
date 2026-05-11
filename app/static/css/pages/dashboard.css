@@ -253,3 +253,29 @@
 .success-message.show {
   display: block;
 }
+.toast-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  gap: 10px;
+  z-index: 3000;
+}
+
+.toast {
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.2);
+  font-size: 14px;
+  max-width: 320px;
+}
+
+.toast--success {
+  background: #166534;
+}
+
+.toast--error {
+  background: #991b1b;
+}
