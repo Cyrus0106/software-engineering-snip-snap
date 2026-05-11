@@ -105,12 +105,14 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
       return;
     }
 
-    if (!state.loading && state.items.length === 0) {
-      mountEl.innerHTML = "";
-      const p = document.createElement("p");
-      p.textContent = "No posts found.";
-      mountEl.appendChild(p);
-      return;
+    if (!state.loading && state.items.length === 0) { 
+      mountEl.innerHTML = ""; 
+      const emptyState = document.createElement("div"); 
+      emptyState.className = "empty-state"; 
+      const title = document.createElement("h2"); title.textContent = "No cuts found"; 
+      const message = document.createElement("p"); message.textContent = "Try removing a filter or searching for a nearby barber."; 
+      emptyState.appendChild(title); emptyState.appendChild(message); 
+      mountEl.appendChild(emptyState); return; 
     }
 
     renderGalleryGrid({

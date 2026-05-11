@@ -175,6 +175,11 @@
   font-weight: 700 !important;
 }
 
+.empty-state { 
+  padding: 48px 16px; text-align: center; color: var(--discover-muted); } 
+  .empty-state h2 { margin: 0 0 8px; color: var(--discover-text); font-size: 1.25rem; } .empty-state p { margin: 0; font-size: 0.95rem; 
+  color: var(--discover-muted); }
+
 /* Skeleton loading cards shown before posts have loaded */
 .gallery-skeleton {
   display: grid;

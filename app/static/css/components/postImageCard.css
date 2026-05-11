@@ -14,9 +14,9 @@
 }
 
 .postImageCard__media {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  overflow: hidden;
+  position: relative; width: 100%; 
+  aspect-ratio: 1 / 1; 
+  overflow: hidden; 
   background: var(--login-surface-2, #f8fafc);
 }
 
@@ -26,6 +26,14 @@
   object-fit: cover;
   display: block;
 }
+
+.postImageCard--clickable .postImageCard__media::after { 
+  content: "View profile"; position: absolute; right: 12px; bottom: 12px; padding: 6px 10px; 
+  border-radius: 999px; background: rgba(17, 24, 39, 0.82); color: #ffffff; 
+  font-size: 12px; 
+  font-weight: 700; opacity: 0; transform: translateY(4px); transition: opacity 0.18s ease, transform 0.18s ease; } 
+  .postImageCard--clickable:hover 
+  .postImageCard__media::after { opacity: 1; transform: translateY(0); }
 
 .postImageCard__meta {
   display: flex;
