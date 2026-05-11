@@ -104,3 +104,20 @@
   color: var(--login-text);
   margin-bottom: 16px;
 }
+
+/* Full page background logo */
+.login-bg-logo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+}
+
+/* Ensure the login card always appears on top of the background logo */
+.login-card {
+  position: relative;
+  z-index: 1;
+}

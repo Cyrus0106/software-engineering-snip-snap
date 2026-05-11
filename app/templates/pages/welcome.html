@@ -9,7 +9,9 @@
 
 {% block content %}
 <div class="login-page">
-  <section class="login-card">
+   <!-- Full page background logo -->
+   <img src="{{ url_for('static', filename='images/snipsnap_logo.png') }}" class="login-bg-logo" alt="">
+   <section class="login-card">
     {% if session.get("user") %}
       <p class="welcome-message">Signed in as <strong>{{ session["user"]["email"] }}</strong> (role: <strong>{{ session["user"]["role"] }}</strong>).</p>
       <p><a href="{{ url_for('logout') }}"><button class="login-btn login-btn--secondary" type="button">Logout</button></a></p>
