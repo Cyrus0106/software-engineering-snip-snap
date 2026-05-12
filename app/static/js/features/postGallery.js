@@ -1,4 +1,3 @@
-import { renderGalleryGrid } from "../components/galleryGrid.js";
 import { renderPostImageCard } from "../components/postImageCard.js";
 
 function normaliseTagListItems(items) {
@@ -83,6 +82,7 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
   const columns = (config && config.columns) || 3;
   const limit = (config && config.limit) || 18;
 
+  let gridEl = null;
 
   const loaderEl = createGalleryLoader();
 
@@ -96,9 +96,31 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
     loaderEl.hidden = !visible;
   }
 
+  function getOrCreateGrid() {
+    if (!gridEl || !mountEl.contains(gridEl)) {
+      mountEl.innerHTML = "";
+      gridEl = document.createElement("div");
+      gridEl.className = "galleryGrid";
+      gridEl.style.setProperty("--gallery-columns", String(columns));
+      mountEl.appendChild(gridEl);
+    }
+    return gridEl;
+  }
+
+  function appendItemsToGrid(newItems) {
+    const grid = getOrCreateGrid();
+    for (const item of newItems) {
+      const cell = document.createElement("div");
+      cell.className = "galleryGrid__cell";
+      cell.appendChild(renderPostImageCard(item));
+      grid.appendChild(cell);
+    }
+  }
+
   function render() {
     if (state.error) {
       mountEl.innerHTML = "";
+      gridEl = null;
       const p = document.createElement("p");
       p.textContent = "Could not load posts. Refresh or adjust filters.";
       mountEl.appendChild(p);
@@ -107,18 +129,12 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
 
     if (!state.loading && state.items.length === 0) {
       mountEl.innerHTML = "";
+      gridEl = null;
       const p = document.createElement("p");
       p.textContent = "No posts found.";
       mountEl.appendChild(p);
       return;
     }
-
-    renderGalleryGrid({
-      mountEl,
-      items: state.items,
-      columns,
-      renderItem: renderPostImageCard
-    });
   }
 
   function buildPayload({ cursor }) {
@@ -155,6 +171,7 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
     state.items = [];
     state.cursor = null;
     state.has_more = true;
+    gridEl = null;
 
     setLoadingVisible(true);
 
@@ -172,12 +189,11 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
       state.loading = false;
       setLoadingVisible(false);
 
-      // Remove the skeleton placeholder now that the first batch of posts
-      // has loaded — whether successful or not, the skeleton is no longer needed
       const skeleton = document.getElementById("gallerySkeleton");
       if (skeleton) skeleton.remove();
-      
+
       render();
+      if (!state.error) appendItemsToGrid(state.items);
     }
   }
 
@@ -200,12 +216,13 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
       state.items = state.items.concat(newItems);
       state.cursor = data.next_cursor || null;
       state.has_more = !!data.has_more;
+      appendItemsToGrid(newItems);
     } catch (e) {
       state.error = e;
+      render();
     } finally {
       state.loading = false;
       setLoadingVisible(false);
-      render();
     }
   }
 

@@ -90,7 +90,5 @@ export function renderPostImageCard(item, options = {}) {
 
   card.appendChild(meta);
 
-  console.log(item);
-
   return card;
 }
