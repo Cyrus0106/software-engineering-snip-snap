@@ -168,8 +168,20 @@ def gallery_posts():
     except (TypeError, ValueError):
         limit = 18
 
+    # most_recent uses keyset cursor; all other sorts use OFFSET (cursor doesn't
+    # match the sort column for blended/closest/highest_rated, so keyset breaks)
     cursor_raw = payload.get("cursor")
-    cursor = _parse_cursor(cursor_raw) if isinstance(cursor_raw, str) else None
+    try:
+        offset = max(0, int(payload.get("offset") or 0))
+    except (TypeError, ValueError):
+        offset = 0
+
+    if effective_sort == "most_recent":
+        cursor = _parse_cursor(cursor_raw) if isinstance(cursor_raw, str) else None
+        pg_offset = 0
+    else:
+        cursor = None
+        pg_offset = offset
 
     # --- viewer location (customer OR barber) ---
     u = session.get("user") or {}
@@ -179,12 +191,10 @@ def gallery_posts():
     viewer_lng = None
 
     if uid is not None:
-        loc = get_user_location(int(uid))  # returns {"lat": float, "lng": float} or None
+        loc = get_user_location(int(uid))
         if loc:
             viewer_lat = loc["lat"]
             viewer_lng = loc["lng"]
-
-    print("gallery_posts effective_sort =", effective_sort, "viewer_lat/lng =", viewer_lat, viewer_lng)
 
     # Fetch 1 extra so we can calculate has_more
     rows = fetch_discover_posts(
@@ -196,6 +206,7 @@ def gallery_posts():
         effective_sort=effective_sort,
         viewer_lat=viewer_lat,
         viewer_lng=viewer_lng,
+        offset=pg_offset,
     )
 
     has_more = len(rows) > limit

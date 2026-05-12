@@ -529,9 +529,11 @@ def fetch_discover_posts(
     effective_sort: str,
     viewer_lat: float | None = None,
     viewer_lng: float | None = None,
+    offset: int = 0,
 ) -> List[Dict[str, Any]]:
     where: List[str] = ["hp.is_post = TRUE", "hp.status = 'show'"]
     where_params: List[Any] = []
+    having_params: List[Any] = []
     select_params: List[Any] = []
     join: List[str] = []
     having: List[str] = []
@@ -571,7 +573,7 @@ def fetch_discover_posts(
         where.append("hpt.tag_id = ANY(%s)")
         where_params.append(tag_ids)
         having.append("COUNT(DISTINCT hpt.tag_id) = %s")
-        where_params.append(len(tag_ids))
+        having_params.append(len(tag_ids))
 
     if cursor is not None:
         cursor_created_at, cursor_photo_id = cursor
@@ -665,10 +667,10 @@ def fetch_discover_posts(
             rating_agg.avg_rating, rating_agg.rating_count
         {having_sql}
         ORDER BY {order_by}
-        LIMIT %s
+        LIMIT %s OFFSET %s
     """
 
-    params = select_params + where_params + [limit]
+    params = select_params + where_params + having_params + [limit, offset]
 
     with _get_conn() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:

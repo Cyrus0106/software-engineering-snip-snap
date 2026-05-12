@@ -149,6 +149,7 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
       barber_ids: parts.barber_ids,
       barbershop_ids: parts.barbershop_ids,
       cursor: cursor,
+      offset: state.items.length,
       limit: limit
     };
   }
