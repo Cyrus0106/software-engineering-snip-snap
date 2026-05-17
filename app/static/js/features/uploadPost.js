@@ -224,17 +224,29 @@ function resetForm() {
   }
 }
 
+function showToast(message, type = 'success') {
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast--${type}`;
+  toast.textContent = message;
+
+  stack.appendChild(toast);
+
+  setTimeout(() => {
+    toast.remove();
+  }, 3000);
+}
+
 function showError(message) {
-  const errorEl = document.getElementById('errorMessage');
-  errorEl.textContent = message;
-  errorEl.classList.add('show');
+  showToast(message, 'error');
 }
 
 function showSuccess(message) {
-  const successEl = document.getElementById('successMessage');
-  successEl.textContent = message;
-  successEl.classList.add('show');
+  showToast(message, 'success');
 }
+
 
 function hideMessages() {
   document.getElementById('errorMessage').classList.remove('show');

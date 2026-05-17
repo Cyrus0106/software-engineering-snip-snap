@@ -123,6 +123,38 @@
   font-size: 0.85rem;
   color: var(--profile-muted);
 }
+.role-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 8px;
+}
+
+.role-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--profile-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--profile-surface-2);
+  color: var(--profile-text);
+  cursor: pointer;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.role-option input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+}
+
+.role-option:has(input:checked) {
+  border-color: var(--profile-accent);
+  background: var(--profile-surface);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--profile-accent) 14%, transparent);
+}
 
 .profile-actions {
   margin-top: 4px;

@@ -39,16 +39,18 @@
       <!-- Role Selection -->
       <div class="profile-field">
         <label class="profile-label">Account Type</label>
-        <div style="display: flex; gap: 16px; margin-top: 8px; margin-bottom: 8px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">
-            <input type="radio" name="role" value="customer" required style="width: 18px; height: 18px;">
-            <span>Customer</span>
-          </label>
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; flex: 1;">
-            <input type="radio" name="role" value="barber" required style="width: 18px; height: 18px;">
-            <span>Barber</span>
-          </label>
-        </div>
+       <div class="role-options">
+  <label class="role-option">
+    <input type="radio" name="role" value="customer" required>
+    <span>Customer</span>
+  </label>
+
+  <label class="role-option">
+    <input type="radio" name="role" value="barber" required>
+    <span>Barber</span>
+  </label>
+</div>
+
         <p id="roleError" class="field-error"></p>
       </div>
 

@@ -130,10 +130,13 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
     if (!state.loading && state.items.length === 0) {
       mountEl.innerHTML = "";
       gridEl = null;
-      const p = document.createElement("p");
-      p.textContent = "No posts found.";
-      mountEl.appendChild(p);
-      return;
+      const emptyState = document.createElement("div");
+      emptyState.className = "empty-state";
+      const title = document.createElement("h2"); title.textContent = "No cuts found";
+      const message = document.createElement("p"); message.textContent = "Try removing a filter or searching for a nearby barber.";
+      emptyState.appendChild(title); emptyState.appendChild(message);
+      mountEl.appendChild(emptyState); return;
+    }
     }
   }
 
@@ -192,6 +195,7 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
 
       const skeleton = document.getElementById("gallerySkeleton");
       if (skeleton) skeleton.remove();
+
 
       render();
       if (!state.error) appendItemsToGrid(state.items);

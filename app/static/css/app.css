@@ -97,6 +97,18 @@ input, textarea, select { width: 100%; padding: 10px; border: 1px solid #d9d9d9;
   background: #eff6ff;
   border-color: #bfdbfe;
 }
+.sidebar-link.is-active {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+  box-shadow: 0 8px 20px rgba(17, 24, 39, 0.18);
+}
+
+.sidebar-link.is-active:hover {
+  transform: none;
+  background: #111827;
+}
+
 
 .sidebar-link .sr-only {
   position: absolute;
@@ -147,5 +159,41 @@ input, textarea, select { width: 100%; padding: 10px; border: 1px solid #d9d9d9;
   .sidebar a:hover {
     background: #111827;
     border-color: #4b5563;
+  }
+}
+@media (max-width: 720px) {
+  .sidebar {
+    top: auto;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    width: auto;
+    height: 64px;
+    padding: 8px 10px;
+    flex-direction: row;
+    justify-content: center;
+    border-right: 0;
+    border-top: 1px solid #e6e6e6;
+  }
+
+  .sidebar-brand {
+    display: none;
+  }
+
+  .sidebar nav {
+    display: flex;
+    gap: 10px;
+  }
+
+  .sidebar-link,
+  .sidebar-link:visited {
+    width: 44px;
+    height: 44px;
+  }
+
+  .content-with-sidebar {
+    margin-left: 0;
+    padding: 16px;
+    padding-bottom: 84px;
   }
 }

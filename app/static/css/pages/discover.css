@@ -8,7 +8,7 @@
   --discover-shadow: var(--login-shadow, 0 20px 50px rgba(15, 23, 42, 0.08));
 }
 
-.login-page {
+.discover-page {
   min-height: 100vh;
   display: grid;
   place-items: center;
@@ -18,7 +18,7 @@
     var(--discover-bg);
 }
 
-.login-card {
+.discover-card {
   width: 100%;
   max-width: 1100px;
   background: var(--discover-surface);
@@ -75,13 +75,13 @@
     --discover-shadow: var(--login-shadow, 0 24px 60px rgba(0, 0, 0, 0.35));
   }
 
-  .login-page {
+  .discover-page {
     background:
       radial-gradient(circle at top left, rgba(245, 158, 11, 0.10), transparent 30%),
       var(--discover-bg);
   }
 
-  .login-card,
+  .discover-card,
   .discover-search,
   .discover-taglist,
   .postImageCard {
@@ -174,6 +174,11 @@
   cursor: pointer !important;
   font-weight: 700 !important;
 }
+
+.empty-state { 
+  padding: 48px 16px; text-align: center; color: var(--discover-muted); } 
+  .empty-state h2 { margin: 0 0 8px; color: var(--discover-text); font-size: 1.25rem; } .empty-state p { margin: 0; font-size: 0.95rem; 
+  color: var(--discover-muted); }
 
 /* Skeleton loading cards shown before posts have loaded */
 .gallery-skeleton {
