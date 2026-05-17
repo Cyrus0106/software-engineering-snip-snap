@@ -1,0 +1,731 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.routes &mdash; Snip-Snap 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Snip-Snap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../app.input_sanitization.html">app.input_sanitization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.access.html">app.access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.auth.html">app.auth</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.db.html">app.db</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.api.html">app.api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.routes.html">app.routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.supabase_storage.html">app.supabase_storage</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Snip-Snap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.routes</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.routes</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">flask</span><span class="w"> </span><span class="kn">import</span> <span class="n">render_template</span><span class="p">,</span> <span class="n">request</span><span class="p">,</span> <span class="n">redirect</span><span class="p">,</span> <span class="n">session</span><span class="p">,</span> <span class="n">url_for</span><span class="p">,</span> <span class="n">jsonify</span><span class="p">,</span> <span class="n">abort</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.auth</span><span class="w"> </span><span class="kn">import</span> <span class="n">verify_supabase_jwt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.input_sanitization</span><span class="w"> </span><span class="kn">import</span> <span class="n">sanitize_input</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.access</span><span class="w"> </span><span class="kn">import</span> <span class="n">login_required</span><span class="p">,</span> <span class="n">roles_required</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_user_postcode</span><span class="p">,</span> <span class="n">get_user_location</span><span class="p">,</span> <span class="n">link_auth_user_id</span><span class="p">,</span> <span class="n">get_app_user_by_auth_user_id</span><span class="p">,</span> <span class="n">get_app_user_by_email</span><span class="p">,</span> <span class="n">get_user_promo</span><span class="p">,</span> <span class="n">get_barber_public_by_user_id</span><span class="p">,</span> <span class="n">get_barber_id_from_user_id</span><span class="p">,</span> <span class="n">update_barber_profile</span><span class="p">,</span> <span class="n">get_barbershop_by_id</span><span class="p">,</span> <span class="n">get_shifts_for_barber</span><span class="p">,</span> <span class="n">get_shop_opening_hours</span><span class="p">,</span> <span class="n">get_reviews_for_barber</span><span class="p">,</span> <span class="n">submit_barber_review</span><span class="p">,</span> <span class="n">get_profile_photo</span><span class="p">,</span> <span class="n">get_barber_gallery_photos</span><span class="p">,</span> <span class="n">get_barbershop_gallery_photos</span><span class="p">,</span> <span class="n">_get_conn</span><span class="p">,</span> <span class="n">add_shift</span><span class="p">,</span> <span class="n">delete_shift</span><span class="p">,</span> <span class="n">update_barber_bio</span><span class="p">,</span> <span class="n">update_barbershop_website</span><span class="p">,</span> <span class="n">update_barber_social_links</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.supabase_storage</span><span class="w"> </span><span class="kn">import</span> <span class="n">sign_storage_path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">uuid</span><span class="w"> </span><span class="kn">import</span> <span class="n">uuid4</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span><span class="p">,</span> <span class="n">time</span>
+
+<div class="viewcode-block" id="get_closing_soon_info">
+<a class="viewcode-back" href="../../app.routes.html#app.routes.get_closing_soon_info">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_closing_soon_info</span><span class="p">(</span><span class="n">close_time_str</span><span class="p">,</span> <span class="n">current_day_num</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Check if a closing time is within the next 2 hours.</span>
+<span class="sd">    Returns dict with &#39;closing_soon&#39; bool and &#39;mins_until_close&#39; int.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">now</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="n">current_mins</span> <span class="o">=</span> <span class="n">now</span><span class="o">.</span><span class="n">hour</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">now</span><span class="o">.</span><span class="n">minute</span>
+        
+        <span class="c1"># Parse close time (format: &quot;HH:MM&quot;)</span>
+        <span class="n">close_parts</span> <span class="o">=</span> <span class="n">close_time_str</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+        <span class="n">close_hour</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">close_parts</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+        <span class="n">close_min</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">close_parts</span><span class="p">[</span><span class="mi">1</span><span class="p">])</span>
+        <span class="n">close_mins</span> <span class="o">=</span> <span class="n">close_hour</span> <span class="o">*</span> <span class="mi">60</span> <span class="o">+</span> <span class="n">close_min</span>
+        
+        <span class="c1"># Calculate minutes until close (same day)</span>
+        <span class="n">mins_until_close</span> <span class="o">=</span> <span class="n">close_mins</span> <span class="o">-</span> <span class="n">current_mins</span>
+        
+        <span class="c1"># If negative, shop has already closed or closing is tomorrow</span>
+        <span class="k">if</span> <span class="n">mins_until_close</span> <span class="o">&lt;</span> <span class="mi">0</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;closing_soon&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;mins_until_close&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+        
+        <span class="c1"># Check if closing within next 2 hours (120 minutes)</span>
+        <span class="k">if</span> <span class="n">mins_until_close</span> <span class="o">&lt;=</span> <span class="mi">120</span><span class="p">:</span>
+            <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;closing_soon&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;mins_until_close&quot;</span><span class="p">:</span> <span class="n">mins_until_close</span><span class="p">}</span>
+        
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;closing_soon&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;mins_until_close&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span>
+    <span class="k">except</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;closing_soon&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;mins_until_close&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_current_day_num">
+<a class="viewcode-back" href="../../app.routes.html#app.routes.get_current_day_num">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_current_day_num</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get current day of week (0=Monday, 6=Sunday).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span><span class="o">.</span><span class="n">weekday</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="register_routes">
+<a class="viewcode-back" href="../../app.routes.html#app.routes.register_routes">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">register_routes</span><span class="p">(</span><span class="n">app</span><span class="p">):</span>
+
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;SUPABASE_URL =&quot;</span><span class="p">,</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">))</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/reviews/&lt;int:barber_id&gt;&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_barber_reviews</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to fetch reviews for a specific barber.&quot;&quot;&quot;</span>
+        <span class="n">reviews</span> <span class="o">=</span> <span class="n">get_reviews_for_barber</span><span class="p">(</span><span class="n">barber_id</span><span class="p">)</span>
+        <span class="c1"># Convert datetime objects to strings so JavaScript can read them</span>
+        <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">reviews</span><span class="p">:</span>
+            <span class="n">r</span><span class="p">[</span><span class="s1">&#39;created_at&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">r</span><span class="p">[</span><span class="s1">&#39;created_at&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">reviews</span><span class="p">)</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/reviews/submit&quot;</span><span class="p">)</span>
+    <span class="nd">@login_required</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">post_review</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to save a new review from the widget.&quot;&quot;&quot;</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">json</span>
+        <span class="n">user_id</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+        
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">review_id</span> <span class="o">=</span> <span class="n">submit_barber_review</span><span class="p">(</span>
+                <span class="n">barber_id</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;barber_id&#39;</span><span class="p">],</span>
+                <span class="n">customer_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span>
+                <span class="n">rating</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;rating&#39;</span><span class="p">],</span>
+                <span class="n">comment</span><span class="o">=</span><span class="n">data</span><span class="p">[</span><span class="s1">&#39;comment&#39;</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;review_id&quot;</span><span class="p">:</span> <span class="n">review_id</span><span class="p">})</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/barber/&lt;int:barber_id&gt;/photos&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_barber_photos</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to fetch gallery photos for a barber (is_post = false).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">photos</span> <span class="o">=</span> <span class="n">get_barber_gallery_photos</span><span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+            <span class="c1"># Sign storage URLs for secure access</span>
+            <span class="k">for</span> <span class="n">photo</span> <span class="ow">in</span> <span class="n">photos</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_url&quot;</span><span class="p">):</span>
+                    <span class="n">photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">):</span>
+                    <span class="n">photo</span><span class="p">[</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">photo</span><span class="p">[</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">photos</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/barbershop/&lt;int:barbershop_id&gt;/photos&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_barbershop_photos</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to fetch gallery photos for a barbershop (all barbers, is_post = false).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">photos</span> <span class="o">=</span> <span class="n">get_barbershop_gallery_photos</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">16</span><span class="p">)</span>
+            <span class="c1"># Sign storage URLs for secure access</span>
+            <span class="k">for</span> <span class="n">photo</span> <span class="ow">in</span> <span class="n">photos</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_url&quot;</span><span class="p">):</span>
+                    <span class="n">photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">):</span>
+                    <span class="n">photo</span><span class="p">[</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">photo</span><span class="p">[</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">photos</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/user/&lt;int:user_id&gt;/barber-id&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_barber_id_endpoint</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to get the barber_id for a given user_id.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">barber_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;User is not a barber&quot;</span><span class="p">}),</span> <span class="mi">404</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;barber_id&quot;</span><span class="p">:</span> <span class="n">barber_id</span><span class="p">})</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/api/my-photos&quot;</span><span class="p">)</span>
+    <span class="nd">@login_required</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">get_my_photos</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to get the current barber&#39;s non-post photos.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">user_id</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">barber_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;User is not a barber&quot;</span><span class="p">}),</span> <span class="mi">403</span>
+            
+            <span class="n">photos</span> <span class="o">=</span> <span class="n">get_barber_gallery_photos</span><span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">limit</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+            <span class="c1"># Sign storage URLs for secure access</span>
+            <span class="k">for</span> <span class="n">photo</span> <span class="ow">in</span> <span class="n">photos</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_url&quot;</span><span class="p">):</span>
+                    <span class="n">photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">):</span>
+                    <span class="n">photo</span><span class="p">[</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">photo</span><span class="p">[</span><span class="s2">&quot;promo_profile_image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">photos</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/photos/&lt;int:photo_id&gt;/update-tag&quot;</span><span class="p">)</span>
+    <span class="nd">@login_required</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">update_photo_main_tag</span><span class="p">(</span><span class="n">photo_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to update a photo&#39;s main tag.&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">()</span>
+            <span class="n">main_tag_id</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;main_tag_id&quot;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">main_tag_id</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;main_tag_id is required&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+            
+            <span class="n">user_id</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">barber_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;User is not a barber&quot;</span><span class="p">}),</span> <span class="mi">403</span>
+            
+            <span class="c1"># Update the photo&#39;s main tag</span>
+            <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+                    <span class="c1"># First, verify the photo belongs to this barber</span>
+                    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                        <span class="s2">&quot;SELECT barber_id FROM HaircutPhoto WHERE photo_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="p">(</span><span class="n">photo_id</span><span class="p">,)</span>
+                    <span class="p">)</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">barber_id</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Photo not found or does not belong to you&quot;</span><span class="p">}),</span> <span class="mi">403</span>
+                    
+                    <span class="c1"># Update the main tag</span>
+                    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                        <span class="s2">&quot;UPDATE HaircutPhoto SET main_tag = </span><span class="si">%s</span><span class="s2"> WHERE photo_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="p">(</span><span class="n">main_tag_id</span><span class="p">,</span> <span class="n">photo_id</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;photo_id&quot;</span><span class="p">:</span> <span class="n">photo_id</span><span class="p">})</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/photos/replace&quot;</span><span class="p">)</span>
+    <span class="nd">@login_required</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">replace_photo</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;API to replace a photo file (upload new image for existing photo).&quot;&quot;&quot;</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">photo_id</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;photo_id&quot;</span><span class="p">)</span>
+            <span class="n">width</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;width&quot;</span><span class="p">)</span>
+            <span class="n">height</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;height&quot;</span><span class="p">)</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">photo_id</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">width</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">height</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;photo_id, width, and height are required&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+            
+            <span class="k">if</span> <span class="s2">&quot;photo&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">request</span><span class="o">.</span><span class="n">files</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;No photo file provided&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+            
+            <span class="n">file</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">files</span><span class="p">[</span><span class="s2">&quot;photo&quot;</span><span class="p">]</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">file</span><span class="o">.</span><span class="n">filename</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">file</span><span class="o">.</span><span class="n">content_type</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;image/&quot;</span><span class="p">):</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Invalid image file&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+            
+            <span class="n">user_id</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">]</span>
+            <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">barber_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;User is not a barber&quot;</span><span class="p">}),</span> <span class="mi">403</span>
+            
+            <span class="c1"># Verify the photo belongs to this barber</span>
+            <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+                    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                        <span class="s2">&quot;SELECT barber_id FROM HaircutPhoto WHERE photo_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="p">(</span><span class="n">photo_id</span><span class="p">,)</span>
+                    <span class="p">)</span>
+                    <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">!=</span> <span class="n">barber_id</span><span class="p">:</span>
+                        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Photo not found or does not belong to you&quot;</span><span class="p">}),</span> <span class="mi">403</span>
+            
+            <span class="c1"># Upload new photo to Supabase storage</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">supabase</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_client</span>
+            <span class="n">sb</span> <span class="o">=</span> <span class="n">create_client</span><span class="p">(</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">],</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_SERVICE_ROLE_KEY&quot;</span><span class="p">]</span>
+            <span class="p">)</span>
+            
+            <span class="n">file_data</span> <span class="o">=</span> <span class="n">file</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
+            <span class="n">storage_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;haircuts/</span><span class="si">{</span><span class="n">barber_id</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">photo_id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">.jpg&quot;</span>
+            
+            <span class="n">sb</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="s2">&quot;photos&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span>
+                <span class="n">storage_path</span><span class="p">,</span>
+                <span class="n">file_data</span><span class="p">,</span>
+                <span class="n">file_options</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;content-type&quot;</span><span class="p">:</span> <span class="s2">&quot;image/jpeg&quot;</span><span class="p">}</span>
+            <span class="p">)</span>
+            
+            <span class="c1"># Update the photo record with new image_url</span>
+            <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+                <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+                    <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                        <span class="s2">&quot;UPDATE HaircutPhoto SET image_url = </span><span class="si">%s</span><span class="s2">, width_px = </span><span class="si">%s</span><span class="s2">, height_px = </span><span class="si">%s</span><span class="s2"> WHERE photo_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                        <span class="p">(</span><span class="n">storage_path</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">width</span><span class="p">),</span> <span class="nb">int</span><span class="p">(</span><span class="n">height</span><span class="p">),</span> <span class="n">photo_id</span><span class="p">)</span>
+                    <span class="p">)</span>
+                    <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+            
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span>
+                <span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span>
+                <span class="s2">&quot;photo_id&quot;</span><span class="p">:</span> <span class="n">photo_id</span><span class="p">,</span>
+                <span class="s2">&quot;storage_path&quot;</span><span class="p">:</span> <span class="n">storage_path</span>
+            <span class="p">})</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">400</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">home</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/welcome.html&quot;</span><span class="p">)</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/login&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">login</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+            <span class="s2">&quot;pages/login.html&quot;</span><span class="p">,</span>
+            <span class="n">supabase_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">],</span>
+            <span class="n">supabase_anon_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_ANON_KEY&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/signup&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">signup</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+            <span class="s2">&quot;pages/signup.html&quot;</span><span class="p">,</span>
+            <span class="n">supabase_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">],</span>
+            <span class="n">supabase_anon_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_ANON_KEY&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/logout&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">logout</span><span class="p">():</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s2">&quot;home&quot;</span><span class="p">))</span>
+
+    <span class="c1"># OAuth redirect lands here (browser page that will POST token to /auth/callback)</span>
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/auth/redirect&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">auth_redirect</span><span class="p">():</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+            <span class="s2">&quot;pages/auth_redirect.html&quot;</span><span class="p">,</span>
+            <span class="n">supabase_url</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">],</span>
+            <span class="n">supabase_anon_key</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_ANON_KEY&quot;</span><span class="p">],</span>
+        <span class="p">)</span>
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/auth/callback&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">auth_callback</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">--- AUTH CALLBACK START ---&quot;</span><span class="p">)</span>
+
+        <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Received JSON:&quot;</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span>
+
+        <span class="n">access_token</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;access_token&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">access_token</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No access_token received&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Missing access_token&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Access token received. Verifying...&quot;</span><span class="p">)</span>
+
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">claims</span> <span class="o">=</span> <span class="n">verify_supabase_jwt</span><span class="p">(</span><span class="n">access_token</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;JWT verified. Claims:&quot;</span><span class="p">,</span> <span class="n">claims</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;JWT verification failed:&quot;</span><span class="p">,</span> <span class="nb">repr</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)}),</span> <span class="mi">401</span>
+
+        <span class="n">auth_user_id</span> <span class="o">=</span> <span class="n">claims</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;sub&quot;</span><span class="p">)</span>
+        <span class="n">email</span> <span class="o">=</span> <span class="n">claims</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">)</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;JWT sub:&quot;</span><span class="p">,</span> <span class="n">auth_user_id</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;JWT email:&quot;</span><span class="p">,</span> <span class="n">email</span><span class="p">)</span>
+
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_app_user_by_auth_user_id</span><span class="p">,</span> <span class="n">link_auth_user_id</span><span class="p">,</span> <span class="n">get_app_user_by_email</span>
+
+        <span class="c1"># Try to get user by auth_user_id first</span>
+        <span class="n">app_user</span> <span class="o">=</span> <span class="n">get_app_user_by_auth_user_id</span><span class="p">(</span><span class="n">auth_user_id</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;DB lookup by auth_user_id:&quot;</span><span class="p">,</span> <span class="n">app_user</span><span class="p">)</span>
+
+        <span class="c1"># If not found, try to link by email</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_user</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Not found by auth_user_id, attempting to link by email...&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">linked</span> <span class="o">=</span> <span class="n">link_auth_user_id</span><span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">auth_user_id</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Link result: </span><span class="si">{</span><span class="n">linked</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                
+                <span class="c1"># Try lookup again</span>
+                <span class="n">app_user</span> <span class="o">=</span> <span class="n">get_app_user_by_auth_user_id</span><span class="p">(</span><span class="n">auth_user_id</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;DB lookup after linking:&quot;</span><span class="p">,</span> <span class="n">app_user</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed to link auth_user_id: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="c1"># Final fallback: lookup by email only</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_user</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Not found by auth_user_id, trying lookup by email...&quot;</span><span class="p">)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="n">app_user</span> <span class="o">=</span> <span class="n">get_app_user_by_email</span><span class="p">(</span><span class="n">email</span><span class="p">)</span>
+                <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;DB lookup by email:&quot;</span><span class="p">,</span> <span class="n">app_user</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Failed lookup by email: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">app_user</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;No App_User found for auth_user_id or email&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;User not found in App_User&quot;</span><span class="p">}),</span> <span class="mi">403</span>
+
+        <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="n">app_user</span><span class="p">[</span><span class="s2">&quot;user_id&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;auth_user_id&quot;</span><span class="p">:</span> <span class="n">app_user</span><span class="p">[</span><span class="s2">&quot;auth_user_id&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">app_user</span><span class="p">[</span><span class="s2">&quot;email&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">app_user</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="p">(</span><span class="n">app_user</span><span class="p">[</span><span class="s2">&quot;role&quot;</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+        <span class="p">}</span>
+
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Session set to:&quot;</span><span class="p">,</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">])</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;--- AUTH CALLBACK END ---</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+    
+    
+    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/guest/start&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">guest_start</span><span class="p">():</span>
+        <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;auth_user_id&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="sa">f</span><span class="s2">&quot;guest-</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="p">[:</span><span class="mi">8</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;guest&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;guest_started_at&quot;</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">utcnow</span><span class="p">()</span><span class="o">.</span><span class="n">isoformat</span><span class="p">()</span> <span class="o">+</span> <span class="s2">&quot;Z&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s2">&quot;discover&quot;</span><span class="p">))</span>
+    
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/whoami&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">whoami</span><span class="p">():</span>
+        <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Current session:&quot;</span><span class="p">,</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">(</span><span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{})</span>
+    
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/discover&quot;</span><span class="p">)</span>
+    <span class="nd">@login_required</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">discover</span><span class="p">():</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">]</span>
+        <span class="n">viewer_loc</span> <span class="o">=</span> <span class="kc">None</span>
+
+        <span class="c1"># Only customers get distance; guests/barbers won’t show it unless you want them to.</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">viewer_loc</span> <span class="o">=</span> <span class="n">get_user_location</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">uid</span><span class="p">))</span> <span class="k">if</span> <span class="n">uid</span> <span class="k">else</span> <span class="kc">None</span>
+
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/discover.html&quot;</span><span class="p">,</span> <span class="n">viewer_loc</span><span class="o">=</span><span class="n">viewer_loc</span><span class="p">)</span>
+    
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/map&quot;</span><span class="p">)</span>
+    <span class="nd">@login_required</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">map_page</span><span class="p">():</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">loc</span> <span class="o">=</span> <span class="n">get_user_location</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">uid</span><span class="p">))</span> <span class="k">if</span> <span class="n">uid</span> <span class="k">else</span> <span class="kc">None</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/map.html&quot;</span><span class="p">,</span> <span class="n">user_location</span><span class="o">=</span><span class="n">loc</span><span class="p">)</span>
+
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/profile&quot;</span><span class="p">)</span>
+    <span class="nd">@roles_required</span><span class="p">(</span><span class="s2">&quot;customer&quot;</span><span class="p">,</span> <span class="s2">&quot;barber&quot;</span><span class="p">)</span>   <span class="c1"># guests cannot access</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">profile</span><span class="p">():</span>
+        <span class="n">u</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;user&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">uid</span> <span class="o">=</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;id&quot;</span><span class="p">)</span>
+        <span class="n">pstCd</span> <span class="o">=</span> <span class="n">get_user_postcode</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">uid</span><span class="p">))</span> <span class="k">if</span> <span class="n">uid</span> <span class="k">else</span> <span class="kc">None</span>
+        
+        <span class="c1"># Get user&#39;s barbershop if they&#39;re a barber</span>
+        <span class="n">barbershop_name</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;role&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;barber&quot;</span><span class="p">:</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">.db</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_barber_barbershop</span>
+            <span class="n">barber_shop</span> <span class="o">=</span> <span class="n">get_barber_barbershop</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">uid</span><span class="p">))</span> <span class="k">if</span> <span class="n">uid</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">barber_shop</span><span class="p">:</span>
+                <span class="n">barbershop_name</span> <span class="o">=</span> <span class="n">barber_shop</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Get user&#39;s profile photo if it exists</span>
+        <span class="n">profile_image_url</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+        <span class="k">if</span> <span class="n">uid</span><span class="p">:</span>
+            <span class="n">profile_photo</span> <span class="o">=</span> <span class="n">get_profile_photo</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">uid</span><span class="p">))</span>
+            <span class="k">if</span> <span class="n">profile_photo</span> <span class="ow">and</span> <span class="n">profile_photo</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;image_url&quot;</span><span class="p">):</span>
+                <span class="c1"># Generate signed URL for the stored image</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">profile_image_url</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">profile_photo</span><span class="p">[</span><span class="s2">&quot;image_url&quot;</span><span class="p">],</span> <span class="n">expires_in</span><span class="o">=</span><span class="mi">3600</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[PROFILE] Error generating signed URL for photo: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="n">user_data</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;username&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;email&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">u</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;role&quot;</span><span class="p">,</span> <span class="s2">&quot;customer&quot;</span><span class="p">),</span>
+            <span class="s2">&quot;profile_image_url&quot;</span><span class="p">:</span> <span class="n">profile_image_url</span><span class="p">,</span>
+            <span class="s2">&quot;barbershop_name&quot;</span><span class="p">:</span> <span class="n">barbershop_name</span><span class="p">,</span>
+        <span class="p">}</span>
+        
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/profile.html&quot;</span><span class="p">,</span> <span class="n">user_postcode</span><span class="o">=</span><span class="n">pstCd</span><span class="p">,</span> <span class="n">user_data</span><span class="o">=</span><span class="n">user_data</span><span class="p">)</span>
+    
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/barber&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">barber_profile</span><span class="p">():</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Public route.</span>
+<span class="sd">        If ?barber_id= is missing, show lookup form.</span>
+<span class="sd">        If present, show that barber profile.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">barber_id</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">args</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;barber_id&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">barber_id</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/barber_profile.html&quot;</span><span class="p">,</span> <span class="n">barber</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">barber_id</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">barber_id</span><span class="o">.</span><span class="n">isdigit</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+                <span class="s2">&quot;pages/barber_profile.html&quot;</span><span class="p">,</span>
+                <span class="n">barber</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">barber_id</span><span class="o">=</span><span class="n">barber_id</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="s2">&quot;Barber id must be a number.&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">barber</span> <span class="o">=</span> <span class="n">get_barber_public_by_user_id</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">barber_id</span><span class="p">))</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">barber</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+                <span class="s2">&quot;pages/barber_profile.html&quot;</span><span class="p">,</span>
+                <span class="n">barber</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">barber_id</span><span class="o">=</span><span class="n">barber_id</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="s2">&quot;No barber found with that id.&quot;</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="n">barber_promo</span> <span class="o">=</span> <span class="n">get_user_promo</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">barber_id</span><span class="p">))</span>
+        <span class="n">shifts</span> <span class="o">=</span> <span class="n">get_shifts_for_barber</span><span class="p">(</span><span class="nb">int</span><span class="p">(</span><span class="n">barber_id</span><span class="p">))</span>
+        <span class="n">current_day</span> <span class="o">=</span> <span class="n">get_current_day_num</span><span class="p">()</span>
+        
+        <span class="c1"># Calculate closing soon info for today&#39;s shifts</span>
+        <span class="n">closing_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">current_day</span> <span class="ow">in</span> <span class="n">shifts</span> <span class="ow">and</span> <span class="n">shifts</span><span class="p">[</span><span class="n">current_day</span><span class="p">]:</span>
+            <span class="c1"># Get the last shift for today</span>
+            <span class="n">last_shift</span> <span class="o">=</span> <span class="n">shifts</span><span class="p">[</span><span class="n">current_day</span><span class="p">][</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="n">closing_info</span> <span class="o">=</span> <span class="n">get_closing_soon_info</span><span class="p">(</span><span class="n">last_shift</span><span class="p">[</span><span class="s2">&quot;end_time&quot;</span><span class="p">],</span> <span class="n">current_day</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+            <span class="s2">&quot;pages/barber_profile.html&quot;</span><span class="p">,</span> 
+            <span class="n">barber</span><span class="o">=</span><span class="n">barber</span><span class="p">,</span> 
+            <span class="n">barber_promo</span><span class="o">=</span><span class="n">barber_promo</span><span class="p">,</span> 
+            <span class="n">shifts</span><span class="o">=</span><span class="n">shifts</span><span class="p">,</span> 
+            <span class="n">barber_id</span><span class="o">=</span><span class="n">barber_id</span><span class="p">,</span>
+            <span class="n">current_day</span><span class="o">=</span><span class="n">current_day</span><span class="p">,</span>
+            <span class="n">closing_info</span><span class="o">=</span><span class="n">closing_info</span>
+        <span class="p">)</span>
+
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/barber/&lt;int:barber_id&gt;&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">barber_profile_by_id</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Convenience route: /barber/123</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s2">&quot;barber_profile&quot;</span><span class="p">,</span> <span class="n">barber_id</span><span class="o">=</span><span class="n">barber_id</span><span class="p">))</span>
+
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;/barbershop/&lt;int:barbershop_id&gt;&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">barbershop_profile</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">        Public barbershop profile showing all barbers at this shop.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">shop</span> <span class="o">=</span> <span class="n">get_barbershop_by_id</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">shop</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+                <span class="s2">&quot;pages/barbershop_profile.html&quot;</span><span class="p">,</span>
+                <span class="n">shop</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                <span class="n">error</span><span class="o">=</span><span class="s2">&quot;Barbershop not found.&quot;</span>
+            <span class="p">)</span>
+
+        <span class="n">opening_hours</span> <span class="o">=</span> <span class="n">get_shop_opening_hours</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">)</span>
+        <span class="n">current_day</span> <span class="o">=</span> <span class="n">get_current_day_num</span><span class="p">()</span>
+        
+        <span class="c1"># Calculate closing soon info for today</span>
+        <span class="n">closing_info</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="k">if</span> <span class="n">current_day</span> <span class="ow">in</span> <span class="n">opening_hours</span><span class="p">:</span>
+            <span class="n">closing_info</span> <span class="o">=</span> <span class="n">get_closing_soon_info</span><span class="p">(</span><span class="n">opening_hours</span><span class="p">[</span><span class="n">current_day</span><span class="p">][</span><span class="s2">&quot;close&quot;</span><span class="p">],</span> <span class="n">current_day</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span>
+            <span class="s2">&quot;pages/barbershop_profile.html&quot;</span><span class="p">,</span> 
+            <span class="n">shop</span><span class="o">=</span><span class="n">shop</span><span class="p">,</span> 
+            <span class="n">opening_hours</span><span class="o">=</span><span class="n">opening_hours</span><span class="p">,</span>
+            <span class="n">current_day</span><span class="o">=</span><span class="n">current_day</span><span class="p">,</span>
+            <span class="n">closing_info</span><span class="o">=</span><span class="n">closing_info</span>
+        <span class="p">)</span>
+    
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/api/shifts&quot;</span><span class="p">)</span>
+    <span class="nd">@roles_required</span><span class="p">(</span><span class="s2">&quot;barber&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">api_add_shift</span><span class="p">():</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="n">request</span><span class="o">.</span><span class="n">get_json</span><span class="p">(</span><span class="n">silent</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="ow">or</span> <span class="p">{}</span>
+        <span class="n">day</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;day_of_week&quot;</span><span class="p">)</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;start_time&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+        <span class="n">end</span> <span class="o">=</span> <span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;end_time&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+        <span class="k">if</span> <span class="n">day</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">day</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="mi">0</span> <span class="o">&lt;=</span> <span class="n">day</span> <span class="o">&lt;=</span> <span class="mi">6</span><span class="p">):</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;day_of_week must be 0-6&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">start</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">end</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;start_time and end_time required&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+        <span class="k">if</span> <span class="n">start</span> <span class="o">&gt;=</span> <span class="n">end</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;start_time must be before end_time&quot;</span><span class="p">}),</span> <span class="mi">400</span>
+
+        <span class="n">user_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+        <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">barber_id</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Barber record not found&quot;</span><span class="p">}),</span> <span class="mi">404</span>
+
+        <span class="n">shift_id</span> <span class="o">=</span> <span class="n">add_shift</span><span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">day</span><span class="p">,</span> <span class="n">start</span><span class="p">,</span> <span class="n">end</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">,</span> <span class="s2">&quot;shift_id&quot;</span><span class="p">:</span> <span class="n">shift_id</span><span class="p">}),</span> <span class="mi">201</span>
+
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">delete</span><span class="p">(</span><span class="s2">&quot;/api/shifts/&lt;int:shift_id&gt;&quot;</span><span class="p">)</span>
+    <span class="nd">@roles_required</span><span class="p">(</span><span class="s2">&quot;barber&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">api_delete_shift</span><span class="p">(</span><span class="n">shift_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+        <span class="n">user_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">][</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+        <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">barber_id</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Barber record not found&quot;</span><span class="p">}),</span> <span class="mi">404</span>
+
+        <span class="n">deleted</span> <span class="o">=</span> <span class="n">delete_shift</span><span class="p">(</span><span class="n">shift_id</span><span class="p">,</span> <span class="n">barber_id</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">deleted</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="s2">&quot;Shift not found or not yours&quot;</span><span class="p">}),</span> <span class="mi">404</span>
+        <span class="k">return</span> <span class="n">jsonify</span><span class="p">({</span><span class="s2">&quot;ok&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">})</span>
+
+
+    <span class="nd">@app</span><span class="o">.</span><span class="n">route</span><span class="p">(</span><span class="s2">&quot;/dashboard&quot;</span><span class="p">,</span> <span class="n">methods</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;GET&quot;</span><span class="p">,</span> <span class="s2">&quot;POST&quot;</span><span class="p">])</span>
+    <span class="nd">@roles_required</span><span class="p">(</span><span class="s2">&quot;barber&quot;</span><span class="p">)</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">dashboard</span><span class="p">():</span>
+        <span class="n">user</span> <span class="o">=</span> <span class="n">session</span><span class="p">[</span><span class="s2">&quot;user&quot;</span><span class="p">]</span>
+        <span class="n">user_id</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">user</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">])</span>
+
+        <span class="k">if</span> <span class="n">request</span><span class="o">.</span><span class="n">method</span> <span class="o">==</span> <span class="s2">&quot;POST&quot;</span><span class="p">:</span>
+            <span class="n">username</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;username&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">None</span>
+            <span class="n">postcode</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;postcode&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">None</span>
+
+            <span class="k">if</span> <span class="n">username</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">username</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">50</span><span class="p">:</span>
+                <span class="n">username</span> <span class="o">=</span> <span class="n">username</span><span class="p">[:</span><span class="mi">50</span><span class="p">]</span>
+            <span class="k">if</span> <span class="n">postcode</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">postcode</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">10</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/dashboard.html&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="s2">&quot;Postcode too long.&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">username</span><span class="p">:</span>
+                <span class="n">err</span> <span class="o">=</span> <span class="n">sanitize_input</span><span class="p">(</span><span class="n">username</span><span class="p">)</span>
+                <span class="k">if</span> <span class="n">err</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/dashboard.html&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="n">err</span><span class="p">)</span>
+
+            <span class="c1"># Allow blanks to mean NULL</span>
+            <span class="n">lat_raw</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;location_lat&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">lng_raw</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;location_lng&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+
+            <span class="n">lat</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">lng</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">lat_raw</span> <span class="ow">and</span> <span class="n">lng_raw</span><span class="p">:</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">lat</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lat_raw</span><span class="p">)</span>
+                    <span class="n">lng</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">lng_raw</span><span class="p">)</span>
+                    <span class="k">if</span> <span class="ow">not</span> <span class="p">(</span><span class="o">-</span><span class="mi">90</span> <span class="o">&lt;=</span> <span class="n">lat</span> <span class="o">&lt;=</span> <span class="mi">90</span><span class="p">)</span> <span class="ow">or</span> <span class="ow">not</span> <span class="p">(</span><span class="o">-</span><span class="mi">180</span> <span class="o">&lt;=</span> <span class="n">lng</span> <span class="o">&lt;=</span> <span class="mi">180</span><span class="p">):</span>
+                        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/dashboard.html&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="s2">&quot;Invalid coordinates.&quot;</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">ValueError</span><span class="p">:</span>
+                    <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/dashboard.html&quot;</span><span class="p">,</span> <span class="n">error</span><span class="o">=</span><span class="s2">&quot;Coordinates must be numbers.&quot;</span><span class="p">)</span>
+
+            <span class="n">update_barber_profile</span><span class="p">(</span><span class="n">user_id</span><span class="o">=</span><span class="n">user_id</span><span class="p">,</span> <span class="n">username</span><span class="o">=</span><span class="n">username</span><span class="p">,</span> <span class="n">postcode</span><span class="o">=</span><span class="n">postcode</span><span class="p">,</span> <span class="n">lat</span><span class="o">=</span><span class="n">lat</span><span class="p">,</span> <span class="n">lng</span><span class="o">=</span><span class="n">lng</span><span class="p">)</span>
+
+            <span class="n">bio</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;bio&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">bio</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">bio</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">500</span><span class="p">:</span>
+                <span class="n">bio</span> <span class="o">=</span> <span class="n">bio</span><span class="p">[:</span><span class="mi">500</span><span class="p">]</span>
+            <span class="n">update_barber_bio</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">bio</span><span class="p">)</span>
+
+            <span class="n">website</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;shop_website&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">None</span>
+            <span class="k">if</span> <span class="n">website</span><span class="p">:</span>
+                <span class="n">update_barbershop_website</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">website</span><span class="p">)</span>
+
+            <span class="n">social_links</span> <span class="o">=</span> <span class="p">{}</span>
+            <span class="n">instagram</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;instagram_url&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="n">tiktok</span> <span class="o">=</span> <span class="p">(</span><span class="n">request</span><span class="o">.</span><span class="n">form</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;tiktok_url&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+            <span class="k">if</span> <span class="n">instagram</span><span class="p">:</span>
+                <span class="n">social_links</span><span class="p">[</span><span class="s2">&quot;instagram&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">instagram</span>
+            <span class="k">if</span> <span class="n">tiktok</span><span class="p">:</span>
+                <span class="n">social_links</span><span class="p">[</span><span class="s2">&quot;tiktok&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">tiktok</span>
+            <span class="n">update_barber_social_links</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">social_links</span><span class="p">)</span>
+
+            <span class="k">return</span> <span class="n">redirect</span><span class="p">(</span><span class="n">url_for</span><span class="p">(</span><span class="s2">&quot;dashboard&quot;</span><span class="p">))</span>
+
+        <span class="c1"># For display, reuse public fetch by id (barber-only route so safe)</span>
+        <span class="n">barber</span> <span class="o">=</span> <span class="n">get_barber_public_by_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+        <span class="n">barber_id</span> <span class="o">=</span> <span class="n">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span>
+        <span class="n">shifts</span> <span class="o">=</span> <span class="n">get_shifts_for_barber</span><span class="p">(</span><span class="n">user_id</span><span class="p">)</span> <span class="k">if</span> <span class="n">barber_id</span> <span class="k">else</span> <span class="p">{}</span>
+        <span class="k">return</span> <span class="n">render_template</span><span class="p">(</span><span class="s2">&quot;pages/dashboard.html&quot;</span><span class="p">,</span> <span class="n">barber</span><span class="o">=</span><span class="n">barber</span><span class="p">,</span> <span class="n">shifts</span><span class="o">=</span><span class="n">shifts</span><span class="p">,</span> <span class="n">barber_id</span><span class="o">=</span><span class="n">barber_id</span><span class="p">)</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Cyrus Alli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

@@ -1,0 +1,180 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.auth &mdash; Snip-Snap 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Snip-Snap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../app.input_sanitization.html">app.input_sanitization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.access.html">app.access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.auth.html">app.auth</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.db.html">app.db</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.api.html">app.api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.routes.html">app.routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.supabase_storage.html">app.supabase_storage</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Snip-Snap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.auth</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.auth</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">JWT verification for Supabase Auth tokens.</span>
+
+<span class="sd">Provides :func:`verify_supabase_jwt` which validates an access token issued</span>
+<span class="sd">by Supabase Auth using the project&#39;s JWKS endpoint.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">jwt</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">jwt</span><span class="w"> </span><span class="kn">import</span> <span class="n">PyJWKClient</span>
+
+<span class="n">_JWK_CLIENT</span> <span class="o">=</span> <span class="kc">None</span>
+<span class="n">_JWK_URL</span> <span class="o">=</span> <span class="kc">None</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_jwk_client</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">PyJWKClient</span><span class="p">:</span>
+    <span class="k">global</span> <span class="n">_JWK_CLIENT</span><span class="p">,</span> <span class="n">_JWK_URL</span>
+
+    <span class="n">supabase_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+    <span class="n">jwk_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">supabase_url</span><span class="si">}</span><span class="s2">/auth/v1/.well-known/jwks.json&quot;</span>
+
+    <span class="k">if</span> <span class="n">_JWK_CLIENT</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">_JWK_URL</span> <span class="o">!=</span> <span class="n">jwk_url</span><span class="p">:</span>
+        <span class="n">_JWK_CLIENT</span> <span class="o">=</span> <span class="n">PyJWKClient</span><span class="p">(</span><span class="n">jwk_url</span><span class="p">)</span>
+        <span class="n">_JWK_URL</span> <span class="o">=</span> <span class="n">jwk_url</span>
+
+    <span class="k">return</span> <span class="n">_JWK_CLIENT</span>
+
+
+<div class="viewcode-block" id="verify_supabase_jwt">
+<a class="viewcode-back" href="../../app.auth.html#app.auth.verify_supabase_jwt">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">verify_supabase_jwt</span><span class="p">(</span><span class="n">access_token</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Verify a Supabase-issued JWT and return its decoded claims.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        access_token: The raw JWT string from the Supabase Auth client.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        A dict of verified JWT claims (``sub``, ``email``, ``role``, etc.).</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        jwt.exceptions.InvalidTokenError: If the token is expired, has a bad</span>
+<span class="sd">            signature, or fails audience/issuer checks.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">supabase_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">rstrip</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)</span>
+    <span class="n">issuer</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">supabase_url</span><span class="si">}</span><span class="s2">/auth/v1&quot;</span>
+
+    <span class="n">header</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">get_unverified_header</span><span class="p">(</span><span class="n">access_token</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;JWT header:&quot;</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
+
+    <span class="c1"># Peek claims without verifying signature, just to inspect aud</span>
+    <span class="n">peek</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">access_token</span><span class="p">,</span> <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;verify_signature&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">})</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;JWT aud (peek):&quot;</span><span class="p">,</span> <span class="n">peek</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;aud&quot;</span><span class="p">),</span> <span class="s2">&quot;iss:&quot;</span><span class="p">,</span> <span class="n">peek</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;iss&quot;</span><span class="p">))</span>
+
+    <span class="n">jwk_client</span> <span class="o">=</span> <span class="n">_get_jwk_client</span><span class="p">()</span>
+    <span class="n">signing_key</span> <span class="o">=</span> <span class="n">jwk_client</span><span class="o">.</span><span class="n">get_signing_key_from_jwt</span><span class="p">(</span><span class="n">access_token</span><span class="p">)</span>
+
+    <span class="n">allowed_algs</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ES256&quot;</span><span class="p">,</span> <span class="s2">&quot;RS256&quot;</span><span class="p">,</span> <span class="s2">&quot;EdDSA&quot;</span><span class="p">]</span>
+
+    <span class="c1"># Accept common Supabase audiences. Adjust if peek shows something else.</span>
+    <span class="n">allowed_audiences</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;authenticated&quot;</span><span class="p">,</span> <span class="s2">&quot;anon&quot;</span><span class="p">]</span>
+    <span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Allowed audiences:&quot;</span><span class="p">,</span> <span class="n">allowed_audiences</span><span class="p">)</span>
+
+    <span class="n">claims</span> <span class="o">=</span> <span class="n">jwt</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span>
+        <span class="n">access_token</span><span class="p">,</span>
+        <span class="n">signing_key</span><span class="o">.</span><span class="n">key</span><span class="p">,</span>
+        <span class="n">algorithms</span><span class="o">=</span><span class="n">allowed_algs</span><span class="p">,</span>
+        <span class="n">issuer</span><span class="o">=</span><span class="n">issuer</span><span class="p">,</span>
+        <span class="n">audience</span><span class="o">=</span><span class="n">allowed_audiences</span><span class="p">,</span>
+        <span class="n">options</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;require&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;exp&quot;</span><span class="p">,</span> <span class="s2">&quot;iss&quot;</span><span class="p">,</span> <span class="s2">&quot;aud&quot;</span><span class="p">]},</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">claims</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Cyrus Alli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

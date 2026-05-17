@@ -1,3 +1,21 @@
+"""
+Database access layer for Snip-Snap.
+
+All SQL queries are centralised here. The module connects to Supabase
+PostgreSQL over SSL using psycopg2, and uses PostGIS (``ST_DistanceSphere``)
+for distance-based sorting on the discover feed.
+
+Functions are grouped by domain:
+
+- **Users** — create, look up, update App_User records.
+- **Barbers** — profile reads, bio/social updates, barber_id lookups.
+- **Barbershops** — shop profiles, opening-hours aggregation.
+- **Photos** — haircut post and gallery photo queries.
+- **Discover feed** — :func:`fetch_discover_posts` with keyset/offset pagination.
+- **Reviews** — submit, fetch, and reply to barber reviews.
+- **Timetable / shifts** — weekly availability management.
+"""
+
 import os
 import psycopg2
 import psycopg2.extras

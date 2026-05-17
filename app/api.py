@@ -1,3 +1,16 @@
+"""
+REST API endpoints for Snip-Snap (``/api/...``).
+
+All routes are registered on the ``api_bp`` Flask Blueprint and return JSON.
+Key endpoints:
+
+- ``POST /api/gallery/posts`` — paginated discover feed with sort and filter options.
+- ``GET  /api/discover/search_items`` — autocomplete for tags, barbers, and shops.
+- ``GET  /api/map/barbershops`` — all barbershop pins for the Leaflet map.
+- ``POST /api/auth/register`` — create a new App_User after Supabase sign-up.
+- ``POST /api/location/update`` — store the viewer's geocoded lat/lng.
+"""
+
 from datetime import datetime
 from flask import Blueprint, request, jsonify, session
 

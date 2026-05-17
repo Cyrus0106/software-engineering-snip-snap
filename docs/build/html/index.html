@@ -1,0 +1,211 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Snip-Snap Documentation &mdash; Snip-Snap 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="app.input_sanitization" href="app.input_sanitization.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="#" class="icon icon-home">
+            Snip-Snap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="app.input_sanitization.html">app.input_sanitization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="app.access.html">app.access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="app.auth.html">app.auth</a></li>
+<li class="toctree-l1"><a class="reference internal" href="app.db.html">app.db</a></li>
+<li class="toctree-l1"><a class="reference internal" href="app.api.html">app.api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="app.routes.html">app.routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="app.supabase_storage.html">app.supabase_storage</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Snip-Snap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Snip-Snap Documentation</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/index.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="snip-snap-documentation">
+<h1>Snip-Snap Documentation<a class="headerlink" href="#snip-snap-documentation" title="Link to this heading"></a></h1>
+<p>Snip-Snap is a UK barbershop discovery web application built with Python/Flask and
+PostgreSQL (via Supabase). It lets customers find local barbers on an interactive map,
+browse a rated infinite-scroll feed of haircut posts, and leave reviews. Barbers can
+manage their profile, timetable, and post gallery from a dashboard.</p>
+<div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="app.input_sanitization.html">app.input_sanitization</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.input_sanitization.html#app.input_sanitization.sanitize_input"><code class="docutils literal notranslate"><span class="pre">sanitize_input()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.access.html">app.access</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.access.html#app.access.current_role"><code class="docutils literal notranslate"><span class="pre">current_role()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.access.html#app.access.login_required"><code class="docutils literal notranslate"><span class="pre">login_required()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.access.html#app.access.roles_required"><code class="docutils literal notranslate"><span class="pre">roles_required()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.auth.html">app.auth</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.auth.html#app.auth.verify_supabase_jwt"><code class="docutils literal notranslate"><span class="pre">verify_supabase_jwt()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.db.html">app.db</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.add_shift"><code class="docutils literal notranslate"><span class="pre">add_shift()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.create_app_user"><code class="docutils literal notranslate"><span class="pre">create_app_user()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.create_barbershop"><code class="docutils literal notranslate"><span class="pre">create_barbershop()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.create_haircut_post"><code class="docutils literal notranslate"><span class="pre">create_haircut_post()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.create_or_update_barber"><code class="docutils literal notranslate"><span class="pre">create_or_update_barber()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.delete_shift"><code class="docutils literal notranslate"><span class="pre">delete_shift()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.fetch_discover_posts"><code class="docutils literal notranslate"><span class="pre">fetch_discover_posts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.fetch_discover_search_items"><code class="docutils literal notranslate"><span class="pre">fetch_discover_search_items()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.filter_existing_tag_ids"><code class="docutils literal notranslate"><span class="pre">filter_existing_tag_ids()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_all_barbershops"><code class="docutils literal notranslate"><span class="pre">get_all_barbershops()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_app_user_by_auth_user_id"><code class="docutils literal notranslate"><span class="pre">get_app_user_by_auth_user_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_app_user_by_email"><code class="docutils literal notranslate"><span class="pre">get_app_user_by_email()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barber_barbershop"><code class="docutils literal notranslate"><span class="pre">get_barber_barbershop()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barber_gallery_photos"><code class="docutils literal notranslate"><span class="pre">get_barber_gallery_photos()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barber_id_from_user_id"><code class="docutils literal notranslate"><span class="pre">get_barber_id_from_user_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barber_public_by_user_id"><code class="docutils literal notranslate"><span class="pre">get_barber_public_by_user_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barbershop_by_id"><code class="docutils literal notranslate"><span class="pre">get_barbershop_by_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barbershop_gallery_photos"><code class="docutils literal notranslate"><span class="pre">get_barbershop_gallery_photos()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_barbershops_for_map"><code class="docutils literal notranslate"><span class="pre">get_barbershops_for_map()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_profile_photo"><code class="docutils literal notranslate"><span class="pre">get_profile_photo()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_reviews_for_barber"><code class="docutils literal notranslate"><span class="pre">get_reviews_for_barber()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_shifts_for_barber"><code class="docutils literal notranslate"><span class="pre">get_shifts_for_barber()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_shop_opening_hours"><code class="docutils literal notranslate"><span class="pre">get_shop_opening_hours()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_user_location"><code class="docutils literal notranslate"><span class="pre">get_user_location()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_user_postcode"><code class="docutils literal notranslate"><span class="pre">get_user_postcode()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.get_user_promo"><code class="docutils literal notranslate"><span class="pre">get_user_promo()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.link_auth_user_id"><code class="docutils literal notranslate"><span class="pre">link_auth_user_id()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.postcode_to_coordinates"><code class="docutils literal notranslate"><span class="pre">postcode_to_coordinates()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.submit_barber_review"><code class="docutils literal notranslate"><span class="pre">submit_barber_review()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_barber_barbershop"><code class="docutils literal notranslate"><span class="pre">update_barber_barbershop()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_barber_bio"><code class="docutils literal notranslate"><span class="pre">update_barber_bio()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_barber_profile"><code class="docutils literal notranslate"><span class="pre">update_barber_profile()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_barber_social_links"><code class="docutils literal notranslate"><span class="pre">update_barber_social_links()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_barbershop_website"><code class="docutils literal notranslate"><span class="pre">update_barbershop_website()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_or_create_profile_photo"><code class="docutils literal notranslate"><span class="pre">update_or_create_profile_photo()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_user_location"><code class="docutils literal notranslate"><span class="pre">update_user_location()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_user_postcode"><code class="docutils literal notranslate"><span class="pre">update_user_postcode()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.db.html#app.db.update_user_profile"><code class="docutils literal notranslate"><span class="pre">update_user_profile()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.api.html">app.api</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.barbershops"><code class="docutils literal notranslate"><span class="pre">barbershops()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.create_new_barbershop"><code class="docutils literal notranslate"><span class="pre">create_new_barbershop()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.create_user"><code class="docutils literal notranslate"><span class="pre">create_user()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.discover_search_items"><code class="docutils literal notranslate"><span class="pre">discover_search_items()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.gallery_posts"><code class="docutils literal notranslate"><span class="pre">gallery_posts()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.get_barbershops"><code class="docutils literal notranslate"><span class="pre">get_barbershops()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.get_current_barbershop"><code class="docutils literal notranslate"><span class="pre">get_current_barbershop()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.save_user_location"><code class="docutils literal notranslate"><span class="pre">save_user_location()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.update_profile"><code class="docutils literal notranslate"><span class="pre">update_profile()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.upload_photo"><code class="docutils literal notranslate"><span class="pre">upload_photo()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.api.html#app.api.upload_profile_photo"><code class="docutils literal notranslate"><span class="pre">upload_profile_photo()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.routes.html">app.routes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.routes.html#app.routes.get_closing_soon_info"><code class="docutils literal notranslate"><span class="pre">get_closing_soon_info()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.routes.html#app.routes.get_current_day_num"><code class="docutils literal notranslate"><span class="pre">get_current_day_num()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.routes.html#app.routes.register_routes"><code class="docutils literal notranslate"><span class="pre">register_routes()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="app.supabase_storage.html">app.supabase_storage</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="app.supabase_storage.html#app.supabase_storage.get_supabase"><code class="docutils literal notranslate"><span class="pre">get_supabase()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.supabase_storage.html#app.supabase_storage.sign_storage_path"><code class="docutils literal notranslate"><span class="pre">sign_storage_path()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="app.supabase_storage.html#app.supabase_storage.upload_photo_to_storage"><code class="docutils literal notranslate"><span class="pre">upload_photo_to_storage()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Link to this heading"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="app.input_sanitization.html" class="btn btn-neutral float-right" title="app.input_sanitization" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Cyrus Alli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

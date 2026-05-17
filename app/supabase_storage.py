@@ -1,3 +1,14 @@
+"""
+Supabase Storage helpers for uploading images and generating signed URLs.
+
+All photo assets (profile photos, haircut posts, gallery images) are stored
+in a single Supabase Storage bucket. This module wraps the supabase-py client
+with two public functions:
+
+- :func:`sign_storage_path` — convert a storage path to a time-limited URL.
+- :func:`upload_photo_to_storage` — upload raw image bytes and return the path.
+"""
+
 import os
 import mimetypes
 from supabase import create_client

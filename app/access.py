@@ -1,3 +1,11 @@
+"""
+Route protection decorators for the Snip-Snap Flask application.
+
+Provides :func:`login_required` and :func:`roles_required` which can be
+applied to any Flask view to enforce authentication and role-based access
+control using the Flask session.
+"""
+
 from __future__ import annotations
 
 from functools import wraps
@@ -7,11 +15,13 @@ from flask import session, redirect, url_for, abort
 
 
 def current_role() -> str | None:
+    """Return the role string of the currently logged-in user, or ``None``."""
     user = session.get("user") or {}
     return user.get("role")
 
 
 def login_required(view: Callable):
+    """Decorator that redirects unauthenticated requests to the login page."""
     @wraps(view)
     def wrapper(*args, **kwargs):
         if not session.get("user"):
@@ -21,6 +31,17 @@ def login_required(view: Callable):
 
 
 def roles_required(*allowed_roles: str):
+    """
+    Decorator factory that restricts a view to users with one of the given roles.
+
+    Args:
+        *allowed_roles: Role strings (e.g. ``"barber"``, ``"customer"``) that
+            are permitted to access the decorated view.
+
+    Returns:
+        A decorator that returns 403 for authenticated users without the
+        required role, or redirects to login for unauthenticated users.
+    """
     allowed = set(allowed_roles)
 
     def decorator(view: Callable):
@@ -32,7 +53,6 @@ def roles_required(*allowed_roles: str):
 
             role = user.get("role")
             if role not in allowed:
-                # If logged in but not permitted
                 return abort(403)
 
             return view(*args, **kwargs)

@@ -1,3 +1,10 @@
+"""
+JWT verification for Supabase Auth tokens.
+
+Provides :func:`verify_supabase_jwt` which validates an access token issued
+by Supabase Auth using the project's JWKS endpoint.
+"""
+
 import os
 import jwt
 from jwt import PyJWKClient
@@ -20,6 +27,19 @@ def _get_jwk_client() -> PyJWKClient:
 
 
 def verify_supabase_jwt(access_token: str) -> dict:
+    """
+    Verify a Supabase-issued JWT and return its decoded claims.
+
+    Args:
+        access_token: The raw JWT string from the Supabase Auth client.
+
+    Returns:
+        A dict of verified JWT claims (``sub``, ``email``, ``role``, etc.).
+
+    Raises:
+        jwt.exceptions.InvalidTokenError: If the token is expired, has a bad
+            signature, or fails audience/issuer checks.
+    """
     supabase_url = os.environ["SUPABASE_URL"].rstrip("/")
     issuer = f"{supabase_url}/auth/v1"
 

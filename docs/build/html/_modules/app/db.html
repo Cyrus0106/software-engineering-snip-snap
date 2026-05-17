@@ -1,0 +1,1445 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.db &mdash; Snip-Snap 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Snip-Snap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../app.input_sanitization.html">app.input_sanitization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.access.html">app.access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.auth.html">app.auth</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.db.html">app.db</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.api.html">app.api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.routes.html">app.routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.supabase_storage.html">app.supabase_storage</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Snip-Snap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.db</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.db</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Database access layer for Snip-Snap.</span>
+
+<span class="sd">All SQL queries are centralised here. The module connects to Supabase</span>
+<span class="sd">PostgreSQL over SSL using psycopg2, and uses PostGIS (``ST_DistanceSphere``)</span>
+<span class="sd">for distance-based sorting on the discover feed.</span>
+
+<span class="sd">Functions are grouped by domain:</span>
+
+<span class="sd">- **Users** — create, look up, update App_User records.</span>
+<span class="sd">- **Barbers** — profile reads, bio/social updates, barber_id lookups.</span>
+<span class="sd">- **Barbershops** — shop profiles, opening-hours aggregation.</span>
+<span class="sd">- **Photos** — haircut post and gallery photo queries.</span>
+<span class="sd">- **Discover feed** — :func:`fetch_discover_posts` with keyset/offset pagination.</span>
+<span class="sd">- **Reviews** — submit, fetch, and reply to barber reviews.</span>
+<span class="sd">- **Timetable / shifts** — weekly availability management.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">psycopg2.extras</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Optional</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Dict</span><span class="p">,</span> <span class="n">Any</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">datetime</span><span class="w"> </span><span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dotenv</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_dotenv</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">.supabase_storage</span><span class="w"> </span><span class="kn">import</span> <span class="n">sign_storage_path</span>
+
+<span class="n">load_dotenv</span><span class="p">()</span>
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_get_conn</span><span class="p">():</span>
+    <span class="n">db_url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;DATABASE_URL&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">db_url</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;DATABASE_URL environment variable is not set&quot;</span><span class="p">)</span>
+
+    <span class="c1"># Supabase Postgres requires SSL. Enforce if not present in the URL.</span>
+    <span class="k">if</span> <span class="s2">&quot;sslmode=&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">db_url</span><span class="p">:</span>
+        <span class="n">sep</span> <span class="o">=</span> <span class="s2">&quot;&amp;&quot;</span> <span class="k">if</span> <span class="s2">&quot;?&quot;</span> <span class="ow">in</span> <span class="n">db_url</span> <span class="k">else</span> <span class="s2">&quot;?&quot;</span>
+        <span class="n">db_url</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">db_url</span><span class="si">}{</span><span class="n">sep</span><span class="si">}</span><span class="s2">sslmode=require&quot;</span>
+
+    <span class="k">return</span> <span class="n">psycopg2</span><span class="o">.</span><span class="n">connect</span><span class="p">(</span><span class="n">db_url</span><span class="p">)</span>
+
+
+<div class="viewcode-block" id="create_app_user">
+<a class="viewcode-back" href="../../app.db.html#app.db.create_app_user">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_app_user</span><span class="p">(</span><span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">role</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;customer&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new App_User record and return the user_id.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        email: User&#39;s email address</span>
+<span class="sd">        username: User&#39;s username</span>
+<span class="sd">        role: User&#39;s role - &#39;customer&#39; or &#39;barber&#39; (default: &#39;customer&#39;)</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="n">email</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">role</span> <span class="o">=</span> <span class="n">role</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    
+    <span class="c1"># Validate role</span>
+    <span class="k">if</span> <span class="n">role</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;customer&quot;</span><span class="p">,</span> <span class="s2">&quot;barber&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Invalid role: </span><span class="si">{</span><span class="n">role</span><span class="si">}</span><span class="s2">. Must be &#39;customer&#39; or &#39;barber&#39;&quot;</span><span class="p">)</span>
+    
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO App_User (email, username, role)</span>
+<span class="sd">                VALUES (%s, %s, %s)</span>
+<span class="sd">                RETURNING user_id</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">email</span><span class="p">,</span> <span class="n">username</span><span class="p">,</span> <span class="n">role</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">user_id</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">user_id</span></div>
+
+
+
+<div class="viewcode-block" id="link_auth_user_id">
+<a class="viewcode-back" href="../../app.db.html#app.db.link_auth_user_id">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">link_auth_user_id</span><span class="p">(</span><span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">auth_user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Link Supabase auth user UUID to App_User row (only if not already linked).</span>
+<span class="sd">    Returns True if a row was actually updated, False otherwise.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="n">email</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                UPDATE App_User</span>
+<span class="sd">                SET auth_user_id = %s</span>
+<span class="sd">                WHERE LOWER(email) = %s</span>
+<span class="sd">                  AND auth_user_id IS NULL</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">auth_user_id</span><span class="p">,</span> <span class="n">email</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">rows_updated</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">rowcount</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">rows_updated</span> <span class="o">&gt;</span> <span class="mi">0</span></div>
+
+
+<div class="viewcode-block" id="get_app_user_by_auth_user_id">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_app_user_by_auth_user_id">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_app_user_by_auth_user_id</span><span class="p">(</span><span class="n">auth_user_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT user_id, auth_user_id, email, username, role</span>
+<span class="sd">                FROM App_User</span>
+<span class="sd">                WHERE auth_user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">auth_user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s2">&quot;auth_user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_app_user_by_email">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_app_user_by_email">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_app_user_by_email</span><span class="p">(</span><span class="n">email</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="n">email</span> <span class="o">=</span> <span class="n">email</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT user_id, auth_user_id, email, username, role</span>
+<span class="sd">                FROM App_User</span>
+<span class="sd">                WHERE LOWER(email) = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">email</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s2">&quot;auth_user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s2">&quot;email&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="get_user_promo">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_user_promo">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_user_promo</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get user profile data for the userPromo component.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT</span>
+<span class="sd">                    u.username AS name,</span>
+<span class="sd">                    u.role,</span>
+<span class="sd">                    pp.image_url AS profile_image_url,</span>
+<span class="sd">                    bs.name AS barbershop_name</span>
+<span class="sd">                FROM App_User u</span>
+<span class="sd">                LEFT JOIN Barber b ON b.user_id = u.user_id</span>
+<span class="sd">                LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id</span>
+<span class="sd">                LEFT JOIN ProfilePhoto pp ON pp.user_id = u.user_id</span>
+<span class="sd">                WHERE u.user_id = %s</span>
+<span class="sd">                LIMIT 1</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">raw_url</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+    <span class="n">image_url</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">raw_url</span><span class="p">:</span>
+        <span class="n">image_url</span> <span class="o">=</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">raw_url</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;profile_image_url&quot;</span><span class="p">:</span> <span class="n">image_url</span><span class="p">,</span>
+        <span class="s2">&quot;barbershop_name&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="get_barber_public_by_user_id">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barber_public_by_user_id">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barber_public_by_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Public barber profile (safe fields only).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT u.user_id, u.username, u.location_lat, u.location_lng,</span>
+<span class="sd">                       u.postcode, u.role,</span>
+<span class="sd">                       bs.location_lat AS shop_lat, bs.location_lng AS shop_lng, bs.website, bs.postcode AS shop_postcode,</span>
+<span class="sd">                       b.bio, bs.website AS shop_website, bs.barbershop_id,</span>
+<span class="sd">                       b.social_links, b.barber_id</span>
+<span class="sd">                FROM App_User u</span>
+<span class="sd">                LEFT JOIN Barber b ON b.user_id = u.user_id</span>
+<span class="sd">                LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id</span>
+<span class="sd">                WHERE u.user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">role</span> <span class="o">=</span> <span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">5</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">role</span> <span class="o">!=</span> <span class="s2">&quot;barber&quot;</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s2">&quot;location_lat&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="s2">&quot;location_lng&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+        <span class="s2">&quot;postcode&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+        <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="n">role</span><span class="p">,</span>
+        <span class="s2">&quot;shop_lat&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+        <span class="s2">&quot;shop_lng&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">7</span><span class="p">],</span>
+        <span class="s2">&quot;website&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">8</span><span class="p">],</span>
+        <span class="s2">&quot;shop_postcode&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">9</span><span class="p">],</span>
+        <span class="s2">&quot;bio&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">10</span><span class="p">],</span>
+        <span class="s2">&quot;shop_website&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">11</span><span class="p">],</span>
+        <span class="s2">&quot;barbershop_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">12</span><span class="p">],</span>
+        <span class="s2">&quot;social_links&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">13</span><span class="p">]</span> <span class="ow">or</span> <span class="p">{},</span>
+        <span class="s2">&quot;barber_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">14</span><span class="p">],</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="get_barber_id_from_user_id">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barber_id_from_user_id">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barber_id_from_user_id</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get the barber_id for a given user_id.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        user_id: User ID</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Barber ID or None if user is not a barber</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT barber_id FROM Barber WHERE user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            <span class="k">return</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">if</span> <span class="n">row</span> <span class="k">else</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="get_barbershop_by_id">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barbershop_by_id">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barbershop_by_id</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get barbershop details including all barbers working there.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="c1"># Get barbershop info</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT barbershop_id, name, postcode, location_lat, location_lng, phone, website</span>
+<span class="sd">                FROM Barbershop</span>
+<span class="sd">                WHERE barbershop_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barbershop_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">shop_row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">shop_row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">shop</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;barbershop_id&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+        <span class="s2">&quot;postcode&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+        <span class="s2">&quot;location_lat&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+        <span class="s2">&quot;location_lng&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+        <span class="s2">&quot;phone&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">5</span><span class="p">],</span>
+        <span class="s2">&quot;website&quot;</span><span class="p">:</span> <span class="n">shop_row</span><span class="p">[</span><span class="mi">6</span><span class="p">],</span>
+        <span class="s2">&quot;barbers&quot;</span><span class="p">:</span> <span class="p">[]</span>
+    <span class="p">}</span>
+
+    <span class="c1"># Get all barbers at this shop</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT u.user_id, u.username, u.location_lat, u.location_lng,</span>
+<span class="sd">                       pp.image_url AS profile_image_url</span>
+<span class="sd">                FROM Barber b</span>
+<span class="sd">                LEFT JOIN App_User u ON u.user_id = b.user_id</span>
+<span class="sd">                LEFT JOIN ProfilePhoto pp ON pp.user_id = u.user_id</span>
+<span class="sd">                WHERE b.barbershop_id = %s</span>
+<span class="sd">                ORDER BY u.username</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barbershop_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">barber_rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">barbers</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">barber_rows</span><span class="p">:</span>
+        <span class="n">promo_data</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span>  <span class="c1"># if user_id exists</span>
+            <span class="n">user_promo</span> <span class="o">=</span> <span class="n">get_user_promo</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+            <span class="k">if</span> <span class="n">user_promo</span><span class="p">:</span>
+                <span class="n">promo_data</span> <span class="o">=</span> <span class="n">user_promo</span>
+
+        <span class="n">barbers</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+            <span class="s2">&quot;location_lat&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+            <span class="s2">&quot;location_lng&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+            <span class="s2">&quot;promo&quot;</span><span class="p">:</span> <span class="n">promo_data</span> <span class="ow">or</span> <span class="p">{</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="ow">or</span> <span class="s2">&quot;Unknown&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;barber&quot;</span><span class="p">,</span>
+                <span class="s2">&quot;profile_image_url&quot;</span><span class="p">:</span> <span class="n">sign_storage_path</span><span class="p">(</span><span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">])</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="mi">4</span><span class="p">]</span> <span class="k">else</span> <span class="kc">None</span><span class="p">,</span>
+                <span class="s2">&quot;barbershop_name&quot;</span><span class="p">:</span> <span class="n">shop</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]</span>
+            <span class="p">}</span>
+        <span class="p">})</span>
+
+    <span class="n">shop</span><span class="p">[</span><span class="s2">&quot;barbers&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">barbers</span>
+    <span class="k">return</span> <span class="n">shop</span></div>
+
+
+
+<div class="viewcode-block" id="get_shifts_for_barber">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_shifts_for_barber">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_shifts_for_barber</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get all shifts for a barber, ordered by day of week.</span>
+<span class="sd">    Returns a dict mapping day_of_week to list of shifts.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT s.shift_id, s.day_of_week, s.start_time, s.end_time</span>
+<span class="sd">                FROM Shift s</span>
+<span class="sd">                LEFT JOIN Barber b ON b.barber_id = s.barber_id</span>
+<span class="sd">                WHERE b.user_id = %s</span>
+<span class="sd">                ORDER BY s.day_of_week, s.start_time</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="n">shifts_by_day</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">day</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">day</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">shifts_by_day</span><span class="p">:</span>
+            <span class="n">shifts_by_day</span><span class="p">[</span><span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+        
+        <span class="c1"># Format times</span>
+        <span class="n">start_time</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        <span class="n">end_time</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">3</span><span class="p">]</span>
+        <span class="n">start_str</span> <span class="o">=</span> <span class="n">start_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">start_time</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">end_str</span> <span class="o">=</span> <span class="n">end_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">end_time</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        
+        <span class="n">shifts_by_day</span><span class="p">[</span><span class="n">day</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">({</span>
+            <span class="s2">&quot;shift_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+            <span class="s2">&quot;start_time&quot;</span><span class="p">:</span> <span class="n">start_str</span><span class="p">,</span>
+            <span class="s2">&quot;end_time&quot;</span><span class="p">:</span> <span class="n">end_str</span>
+        <span class="p">})</span>
+
+    <span class="k">return</span> <span class="n">shifts_by_day</span></div>
+
+
+
+<div class="viewcode-block" id="add_shift">
+<a class="viewcode-back" href="../../app.db.html#app.db.add_shift">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">add_shift</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">day_of_week</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">start_time</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">end_time</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add a shift for a barber. Returns the new shift_id.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO Shift (barber_id, day_of_week, start_time, end_time)</span>
+<span class="sd">                VALUES (%s, %s, %s, %s)</span>
+<span class="sd">                RETURNING shift_id</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">day_of_week</span><span class="p">,</span> <span class="n">start_time</span><span class="p">,</span> <span class="n">end_time</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">shift_id</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">shift_id</span></div>
+
+
+
+<div class="viewcode-block" id="delete_shift">
+<a class="viewcode-back" href="../../app.db.html#app.db.delete_shift">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">delete_shift</span><span class="p">(</span><span class="n">shift_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Delete a shift, only if it belongs to the given barber.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;DELETE FROM Shift WHERE shift_id = </span><span class="si">%s</span><span class="s2"> AND barber_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">shift_id</span><span class="p">,</span> <span class="n">barber_id</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">deleted</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">rowcount</span> <span class="o">&gt;</span> <span class="mi">0</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">deleted</span></div>
+
+
+
+<div class="viewcode-block" id="get_shop_opening_hours">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_shop_opening_hours">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_shop_opening_hours</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Get aggregate opening hours for a shop by analyzing all barbers&#39; shifts.</span>
+<span class="sd">    Returns a dict mapping day_of_week to {open_time, close_time}.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT </span>
+<span class="sd">                    s.day_of_week,</span>
+<span class="sd">                    MIN(s.start_time) AS earliest_start,</span>
+<span class="sd">                    MAX(s.end_time) AS latest_end</span>
+<span class="sd">                FROM Shift s</span>
+<span class="sd">                LEFT JOIN Barber b ON b.barber_id = s.barber_id</span>
+<span class="sd">                WHERE b.barbershop_id = %s</span>
+<span class="sd">                GROUP BY s.day_of_week</span>
+<span class="sd">                ORDER BY s.day_of_week</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barbershop_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">{}</span>
+
+    <span class="n">hours_by_day</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">day</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">open_time</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">close_time</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span>
+        
+        <span class="n">open_str</span> <span class="o">=</span> <span class="n">open_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">open_time</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        <span class="n">close_str</span> <span class="o">=</span> <span class="n">close_time</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%H:%M&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">close_time</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+        
+        <span class="n">hours_by_day</span><span class="p">[</span><span class="n">day</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;open&quot;</span><span class="p">:</span> <span class="n">open_str</span><span class="p">,</span>
+            <span class="s2">&quot;close&quot;</span><span class="p">:</span> <span class="n">close_str</span>
+        <span class="p">}</span>
+
+    <span class="k">return</span> <span class="n">hours_by_day</span></div>
+
+
+
+<div class="viewcode-block" id="update_barber_profile">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_barber_profile">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_barber_profile</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">postcode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lng</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Barber edits their own public profile.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                UPDATE App_User</span>
+<span class="sd">                SET</span>
+<span class="sd">                  username = COALESCE(%s, username),</span>
+<span class="sd">                  postcode = COALESCE(%s, postcode),</span>
+<span class="sd">                  location_lat = %s,</span>
+<span class="sd">                  location_lng = %s</span>
+<span class="sd">                WHERE user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">postcode</span><span class="p">,</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lng</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="update_barber_bio">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_barber_bio">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_barber_bio</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">bio</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the bio for a barber.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE Barber SET bio = </span><span class="si">%s</span><span class="s2"> WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">bio</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="update_barbershop_website">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_barbershop_website">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_barbershop_website</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">website</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the website for the barbershop the barber works at.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                UPDATE Barbershop SET website = %s</span>
+<span class="sd">                WHERE barbershop_id = (</span>
+<span class="sd">                    SELECT barbershop_id FROM Barber WHERE user_id = %s</span>
+<span class="sd">                )</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">website</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="update_barber_social_links">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_barber_social_links">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_barber_social_links</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">social_links</span><span class="p">:</span> <span class="nb">dict</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Update the social_links JSON for a barber.&quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">json</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">_json</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE Barber SET social_links = </span><span class="si">%s</span><span class="s2"> WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">_json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">social_links</span><span class="p">),</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="filter_existing_tag_ids">
+<a class="viewcode-back" href="../../app.db.html#app.db.filter_existing_tag_ids">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">filter_existing_tag_ids</span><span class="p">(</span><span class="n">tag_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]:</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">tag_ids</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;SELECT tag_id FROM Tag WHERE tag_id = ANY(</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">tag_ids</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">r</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="create_haircut_post">
+<a class="viewcode-back" href="../../app.db.html#app.db.create_haircut_post">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_haircut_post</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">image_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">width_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">height_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">tag_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">]):</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO HaircutPhoto (barber_id, image_url, width_px, height_px, is_post)</span>
+<span class="sd">                VALUES (%s, %s, %s, %s, TRUE)</span>
+<span class="sd">                RETURNING photo_id</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">image_url</span><span class="p">,</span> <span class="n">width_px</span><span class="p">,</span> <span class="n">height_px</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">photo_id</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+
+            <span class="k">for</span> <span class="n">tag_id</span> <span class="ow">in</span> <span class="n">tag_ids</span><span class="p">:</span>
+                <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                    INSERT INTO HaircutPhoto_Tag (photo_id, tag_id)</span>
+<span class="sd">                    VALUES (%s, %s)</span>
+<span class="sd">                    ON CONFLICT DO NOTHING</span>
+<span class="sd">                    &quot;&quot;&quot;</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">photo_id</span><span class="p">,</span> <span class="n">tag_id</span><span class="p">),</span>
+                <span class="p">)</span>
+    <span class="k">return</span> <span class="n">photo_id</span></div>
+
+
+<span class="c1"># fetch_discover_posts is a complex query builder for the discover page, supporting multiple optional filters and sorts, and calculating distance and blended scores for ranking.</span>
+<span class="c1"># It returns a list of haircut posts with associated promo info, ratings, and distance if viewer location is provided.</span>
+<span class="c1"># It is a very important function for the discover page performance and relevance, and is carefully optimized with conditional joins and where clauses based on the provided filters.</span>
+<div class="viewcode-block" id="fetch_discover_posts">
+<a class="viewcode-back" href="../../app.db.html#app.db.fetch_discover_posts">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fetch_discover_posts</span><span class="p">(</span>
+    <span class="n">tag_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">barber_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">barbershop_ids</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">int</span><span class="p">],</span>
+    <span class="n">cursor</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="n">datetime</span><span class="p">,</span> <span class="nb">int</span><span class="p">]],</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span>
+    <span class="n">effective_sort</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">viewer_lat</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">viewer_lng</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">offset</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+    <span class="n">where</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;hp.is_post = TRUE&quot;</span><span class="p">,</span> <span class="s2">&quot;hp.status = &#39;show&#39;&quot;</span><span class="p">]</span>
+    <span class="n">where_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">having_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">select_params</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="n">Any</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">join</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="n">having</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">[]</span>
+
+    <span class="c1"># --- Core joins for promo + barbershop coords</span>
+    <span class="n">join</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;JOIN barber b_promo ON b_promo.barber_id = hp.barber_id&quot;</span><span class="p">)</span>
+    <span class="n">join</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;JOIN app_user u_promo ON u_promo.user_id = b_promo.user_id&quot;</span><span class="p">)</span>
+    <span class="n">join</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;LEFT JOIN barbershop bs_promo ON bs_promo.barbershop_id = b_promo.barbershop_id&quot;</span><span class="p">)</span>
+    <span class="n">join</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;LEFT JOIN profilephoto pp_promo ON pp_promo.user_id = u_promo.user_id&quot;</span><span class="p">)</span>
+
+    <span class="c1"># --- Rating aggregate</span>
+    <span class="n">join</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        LEFT JOIN (</span>
+<span class="s2">            SELECT</span>
+<span class="s2">                r.target_barber_id AS barber_id,</span>
+<span class="s2">                AVG(r.rating)::float AS avg_rating,</span>
+<span class="s2">                COUNT(*)::int AS rating_count</span>
+<span class="s2">            FROM review r</span>
+<span class="s2">            WHERE r.status = &#39;show&#39;</span>
+<span class="s2">              AND r.rating IS NOT NULL</span>
+<span class="s2">              AND r.target_barber_id IS NOT NULL</span>
+<span class="s2">            GROUP BY r.target_barber_id</span>
+<span class="s2">        ) rating_agg ON rating_agg.barber_id = hp.barber_id</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+
+    <span class="c1"># --- Filters</span>
+    <span class="k">if</span> <span class="n">barbershop_ids</span><span class="p">:</span>
+        <span class="n">where</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;b_promo.barbershop_id = ANY(</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">where_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">barbershop_ids</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">barber_ids</span><span class="p">:</span>
+        <span class="n">where</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;hp.barber_id = ANY(</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">where_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">barber_ids</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">tag_ids</span><span class="p">:</span>
+        <span class="n">join</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;JOIN haircutphoto_tag hpt ON hpt.photo_id = hp.photo_id&quot;</span><span class="p">)</span>
+        <span class="n">where</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;hpt.tag_id = ANY(</span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">)</span>
+        <span class="n">where_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tag_ids</span><span class="p">)</span>
+        <span class="n">having</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;COUNT(DISTINCT hpt.tag_id) = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="n">having_params</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">tag_ids</span><span class="p">))</span>
+
+    <span class="k">if</span> <span class="n">cursor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">cursor_created_at</span><span class="p">,</span> <span class="n">cursor_photo_id</span> <span class="o">=</span> <span class="n">cursor</span>
+        <span class="n">where</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;(hp.created_at &lt; </span><span class="si">%s</span><span class="s2"> OR (hp.created_at = </span><span class="si">%s</span><span class="s2"> AND hp.photo_id &lt; </span><span class="si">%s</span><span class="s2">))&quot;</span><span class="p">)</span>
+        <span class="n">where_params</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">cursor_created_at</span><span class="p">,</span> <span class="n">cursor_created_at</span><span class="p">,</span> <span class="n">cursor_photo_id</span><span class="p">])</span>
+
+    <span class="c1"># --- Distance</span>
+    <span class="n">include_distance</span> <span class="o">=</span> <span class="p">(</span><span class="n">viewer_lat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">viewer_lng</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">)</span>
+
+    <span class="n">distance_expr</span> <span class="o">=</span> <span class="s2">&quot;NULL::float&quot;</span>
+    <span class="n">distance_score_expr</span> <span class="o">=</span> <span class="s2">&quot;0.0::float&quot;</span>
+
+    <span class="k">if</span> <span class="n">include_distance</span><span class="p">:</span>
+        <span class="n">distance_expr</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        (ST_DistanceSphere(</span>
+<span class="s2">            ST_MakePoint(bs_promo.location_lng, bs_promo.location_lat),</span>
+<span class="s2">            ST_MakePoint(</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)</span>
+<span class="s2">        ) / 1000.0)::float</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+        <span class="c1"># SELECT placeholders come before WHERE placeholders</span>
+        <span class="n">select_params</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">viewer_lng</span><span class="p">,</span> <span class="n">viewer_lat</span><span class="p">])</span>
+
+        <span class="n">distance_score_expr</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        (1.0 / (1.0 + (</span>
+<span class="s2">            ST_DistanceSphere(</span>
+<span class="s2">                ST_MakePoint(bs_promo.location_lng, bs_promo.location_lat),</span>
+<span class="s2">                ST_MakePoint(</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)</span>
+<span class="s2">            ) / 1000.0</span>
+<span class="s2">        )))</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+        <span class="c1"># blended_score uses distance again, so add them again</span>
+        <span class="n">select_params</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="n">viewer_lng</span><span class="p">,</span> <span class="n">viewer_lat</span><span class="p">])</span>
+
+    <span class="c1"># --- Scoring</span>
+    <span class="n">rating_score_expr</span> <span class="o">=</span> <span class="s2">&quot;COALESCE(rating_agg.avg_rating, 0)::float / 5.0&quot;</span>
+    <span class="n">recency_score_expr</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    (1.0 / (1.0 + (EXTRACT(EPOCH FROM (NOW() - hp.created_at)) / 86400.0)))</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="n">blended_score_expr</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">    (</span>
+<span class="s2">        0.45 * (</span><span class="si">{</span><span class="n">distance_score_expr</span><span class="si">}</span><span class="s2">) +</span>
+<span class="s2">        0.35 * (</span><span class="si">{</span><span class="n">rating_score_expr</span><span class="si">}</span><span class="s2">) +</span>
+<span class="s2">        0.20 * (</span><span class="si">{</span><span class="n">recency_score_expr</span><span class="si">}</span><span class="s2">)</span>
+<span class="s2">    )::float</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># --- Ordering</span>
+    <span class="k">if</span> <span class="n">effective_sort</span> <span class="o">==</span> <span class="s2">&quot;closest&quot;</span> <span class="ow">and</span> <span class="n">include_distance</span><span class="p">:</span>
+        <span class="n">order_by</span> <span class="o">=</span> <span class="s2">&quot;distance_km ASC, hp.created_at DESC, hp.photo_id DESC&quot;</span>
+    <span class="k">elif</span> <span class="n">effective_sort</span> <span class="o">==</span> <span class="s2">&quot;highest_rated&quot;</span><span class="p">:</span>
+        <span class="n">order_by</span> <span class="o">=</span> <span class="s2">&quot;rating_agg.avg_rating DESC NULLS LAST, rating_agg.rating_count DESC, hp.created_at DESC, hp.photo_id DESC&quot;</span>
+    <span class="k">elif</span> <span class="n">effective_sort</span> <span class="o">==</span> <span class="s2">&quot;blended&quot;</span><span class="p">:</span>
+        <span class="n">order_by</span> <span class="o">=</span> <span class="s2">&quot;blended_score DESC, hp.created_at DESC, hp.photo_id DESC&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">order_by</span> <span class="o">=</span> <span class="s2">&quot;hp.created_at DESC, hp.photo_id DESC&quot;</span>
+
+    <span class="n">having_sql</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;HAVING </span><span class="si">{</span><span class="s1">&#39; AND &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">having</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">having</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">sql</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT</span>
+<span class="s2">            hp.photo_id,</span>
+<span class="s2">            hp.image_url,</span>
+<span class="s2">            hp.width_px,</span>
+<span class="s2">            hp.height_px,</span>
+<span class="s2">            hp.created_at,</span>
+<span class="s2">            hp.barber_id,</span>
+
+<span class="s2">            u_promo.user_id AS promo_user_id,</span>
+<span class="s2">            u_promo.username AS promo_name,</span>
+<span class="s2">            u_promo.role AS promo_role,</span>
+<span class="s2">            bs_promo.name AS promo_barbershop_name,</span>
+<span class="s2">            pp_promo.image_url AS promo_profile_image_url,</span>
+
+<span class="s2">            bs_promo.location_lat AS shop_lat,</span>
+<span class="s2">            bs_promo.location_lng AS shop_lng,</span>
+
+<span class="s2">            rating_agg.avg_rating AS avg_rating,</span>
+<span class="s2">            rating_agg.rating_count AS rating_count,</span>
+
+<span class="s2">            </span><span class="si">{</span><span class="n">distance_expr</span><span class="si">}</span><span class="s2"> AS distance_km,</span>
+<span class="s2">            </span><span class="si">{</span><span class="n">blended_score_expr</span><span class="si">}</span><span class="s2"> AS blended_score</span>
+
+<span class="s2">        FROM haircutphoto hp</span>
+<span class="s2">        </span><span class="si">{</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">join</span><span class="p">)</span><span class="si">}</span>
+<span class="s2">        WHERE </span><span class="si">{</span><span class="s1">&#39; AND &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">where</span><span class="p">)</span><span class="si">}</span>
+<span class="s2">        GROUP BY</span>
+<span class="s2">            hp.photo_id, hp.image_url, hp.width_px, hp.height_px, hp.created_at, hp.barber_id,</span>
+<span class="s2">            u_promo.user_id, u_promo.username, u_promo.role, bs_promo.name, pp_promo.image_url,</span>
+<span class="s2">            bs_promo.location_lat, bs_promo.location_lng,</span>
+<span class="s2">            rating_agg.avg_rating, rating_agg.rating_count</span>
+<span class="s2">        </span><span class="si">{</span><span class="n">having_sql</span><span class="si">}</span>
+<span class="s2">        ORDER BY </span><span class="si">{</span><span class="n">order_by</span><span class="si">}</span>
+<span class="s2">        LIMIT %s OFFSET %s</span>
+<span class="s2">    &quot;&quot;&quot;</span>
+
+    <span class="n">params</span> <span class="o">=</span> <span class="n">select_params</span> <span class="o">+</span> <span class="n">where_params</span> <span class="o">+</span> <span class="n">having_params</span> <span class="o">+</span> <span class="p">[</span><span class="n">limit</span><span class="p">,</span> <span class="n">offset</span><span class="p">]</span>
+
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">sql</span><span class="p">,</span> <span class="n">params</span><span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">rows</span></div>
+
+
+<div class="viewcode-block" id="update_user_location">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_user_location">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_user_location</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">lng</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE App_User SET location_lat = </span><span class="si">%s</span><span class="s2">, location_lng = </span><span class="si">%s</span><span class="s2"> WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">lng</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="get_user_location">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_user_location">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_user_location</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT location_lat, location_lng FROM App_User WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">lat</span><span class="p">,</span> <span class="n">lng</span> <span class="o">=</span> <span class="n">row</span>
+    <span class="k">if</span> <span class="n">lat</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">lng</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">lat</span><span class="p">),</span> <span class="s2">&quot;lng&quot;</span><span class="p">:</span> <span class="nb">float</span><span class="p">(</span><span class="n">lng</span><span class="p">)}</span></div>
+
+
+
+<div class="viewcode-block" id="update_user_postcode">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_user_postcode">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_user_postcode</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">postcode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                <span class="s2">&quot;UPDATE App_User SET postcode = </span><span class="si">%s</span><span class="s2"> WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">postcode</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="get_user_postcode">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_user_postcode">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_user_postcode</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT postcode FROM App_User WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">postcode</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">postcode</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">postcode</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">_pick_label</span><span class="p">(</span><span class="n">row</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span> <span class="n">preferred_keys</span><span class="p">:</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">preferred_keys</span><span class="p">:</span>
+        <span class="n">v</span> <span class="o">=</span> <span class="n">row</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">k</span><span class="p">)</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">row</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">v</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
+    <span class="k">return</span> <span class="s2">&quot;&quot;</span>
+
+
+
+<div class="viewcode-block" id="get_barbershops_for_map">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barbershops_for_map">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barbershops_for_map</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return all barbershops with their barbers for the map page API.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT</span>
+<span class="sd">                    bs.barbershop_id,</span>
+<span class="sd">                    bs.name,</span>
+<span class="sd">                    bs.postcode,</span>
+<span class="sd">                    bs.location_lat,</span>
+<span class="sd">                    bs.location_lng,</span>
+<span class="sd">                    bs.phone,</span>
+<span class="sd">                    bs.website,</span>
+<span class="sd">                    b.barber_id,</span>
+<span class="sd">                    b.bio,</span>
+<span class="sd">                    u.user_id,</span>
+<span class="sd">                    u.username,</span>
+<span class="sd">                    pp.image_url AS profile_image_url</span>
+<span class="sd">                FROM Barbershop bs</span>
+<span class="sd">                LEFT JOIN Barber b ON b.barbershop_id = bs.barbershop_id</span>
+<span class="sd">                LEFT JOIN App_User u ON u.user_id = b.user_id</span>
+<span class="sd">                LEFT JOIN ProfilePhoto pp ON pp.user_id = b.user_id</span>
+<span class="sd">                ORDER BY bs.barbershop_id, b.barber_id</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+
+    <span class="n">shops</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span><span class="p">:</span>
+        <span class="n">bid</span> <span class="o">=</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;barbershop_id&quot;</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">bid</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">shops</span><span class="p">:</span>
+            <span class="n">shops</span><span class="p">[</span><span class="n">bid</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
+                <span class="s2">&quot;barbershop_id&quot;</span><span class="p">:</span> <span class="n">bid</span><span class="p">,</span>
+                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;postcode&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;postcode&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span>
+                <span class="s2">&quot;lat&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;location_lat&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;lng&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;location_lng&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;phone&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;phone&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;website&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;website&quot;</span><span class="p">],</span>
+                <span class="s2">&quot;barbers&quot;</span><span class="p">:</span> <span class="p">[],</span>
+            <span class="p">}</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;barber_id&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">shops</span><span class="p">[</span><span class="n">bid</span><span class="p">][</span><span class="s2">&quot;barbers&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;barber_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;barber_id&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;user_id&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;username&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">],</span>
+                    <span class="s2">&quot;profile_image_url&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;profile_image_url&quot;</span><span class="p">],</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+
+    <span class="k">return</span> <span class="nb">list</span><span class="p">(</span><span class="n">shops</span><span class="o">.</span><span class="n">values</span><span class="p">())</span></div>
+
+
+
+<div class="viewcode-block" id="fetch_discover_search_items">
+<a class="viewcode-back" href="../../app.db.html#app.db.fetch_discover_search_items">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">fetch_discover_search_items</span><span class="p">():</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;filter&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Closest&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;filter&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Highest rated&quot;</span><span class="p">},</span>
+        <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;filter&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="s2">&quot;Most recent&quot;</span><span class="p">},</span>
+    <span class="p">]</span>
+
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT tag_id, name FROM Tag ORDER BY name ASC&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">():</span>
+                <span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">({</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;tag_id&quot;</span><span class="p">]),</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;tag&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]})</span>
+
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT b.barber_id, u.username</span>
+<span class="sd">                FROM Barber b</span>
+<span class="sd">                JOIN App_User u ON u.user_id = b.user_id</span>
+<span class="sd">                ORDER BY u.username ASC</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">():</span>
+                <span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;barber_id&quot;</span><span class="p">]),</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;barber&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;username&quot;</span><span class="p">]}</span>
+                <span class="p">)</span>
+
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT barbershop_id, name FROM Barbershop ORDER BY name ASC&quot;</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">r</span> <span class="ow">in</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">():</span>
+                <span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">(</span>
+                    <span class="p">{</span><span class="s2">&quot;id&quot;</span><span class="p">:</span> <span class="nb">int</span><span class="p">(</span><span class="n">r</span><span class="p">[</span><span class="s2">&quot;barbershop_id&quot;</span><span class="p">]),</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;barbershop&quot;</span><span class="p">,</span> <span class="s2">&quot;label&quot;</span><span class="p">:</span> <span class="n">r</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">]}</span>
+                <span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">items</span></div>
+
+
+
+<div class="viewcode-block" id="get_all_barbershops">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_all_barbershops">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_all_barbershops</span><span class="p">():</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get all barbershops for autocomplete in profile.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT barbershop_id, name, postcode, location_lat, location_lng</span>
+<span class="sd">                FROM Barbershop</span>
+<span class="sd">                ORDER BY name ASC</span>
+<span class="sd">                &quot;&quot;&quot;</span>
+            <span class="p">)</span>
+            <span class="n">rows</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span>
+    
+    <span class="k">return</span> <span class="p">[</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;barbershop_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;barbershop_id&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;postcode&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;postcode&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;postcode&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+            <span class="s2">&quot;location_lat&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;location_lat&quot;</span><span class="p">],</span>
+            <span class="s2">&quot;location_lng&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;location_lng&quot;</span><span class="p">],</span>
+        <span class="p">}</span>
+        <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">rows</span>
+    <span class="p">]</span></div>
+
+
+
+<div class="viewcode-block" id="get_barber_barbershop">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barber_barbershop">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barber_barbershop</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get the barbershop that a barber works at.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT bs.barbershop_id, bs.name, bs.postcode, bs.location_lat, bs.location_lng</span>
+<span class="sd">                FROM Barber b</span>
+<span class="sd">                LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id</span>
+<span class="sd">                WHERE b.user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">row</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">row</span> <span class="ow">or</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;barbershop_id&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;barbershop_id&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;barbershop_id&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;name&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;postcode&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;postcode&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="k">if</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;postcode&quot;</span><span class="p">]</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;location_lat&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;location_lat&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;location_lng&quot;</span><span class="p">:</span> <span class="n">row</span><span class="p">[</span><span class="s2">&quot;location_lng&quot;</span><span class="p">],</span>
+    <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="update_user_profile">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_user_profile">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_user_profile</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">username</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">postcode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">role</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">lat</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">lng</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Update user profile (username, postcode, role, and optionally latitude/longitude).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                UPDATE App_User</span>
+<span class="sd">                SET</span>
+<span class="sd">                  username = COALESCE(%s, username),</span>
+<span class="sd">                  postcode = COALESCE(%s, postcode),</span>
+<span class="sd">                  role = COALESCE(%s, role),</span>
+<span class="sd">                  location_lat = COALESCE(%s, location_lat),</span>
+<span class="sd">                  location_lng = COALESCE(%s, location_lng)</span>
+<span class="sd">                WHERE user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">username</span><span class="p">,</span> <span class="n">postcode</span><span class="p">,</span> <span class="n">role</span><span class="p">,</span> <span class="n">lat</span><span class="p">,</span> <span class="n">lng</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span>
+            <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="create_or_update_barber">
+<a class="viewcode-back" href="../../app.db.html#app.db.create_or_update_barber">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_or_update_barber</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a barber record if it doesn&#39;t exist, or update the barbershop if it does.</span>
+<span class="sd">    This is used when a barber first picks their shop or changes shops.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="c1"># First, check if barber record exists</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="s2">&quot;SELECT barber_id FROM Barber WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span> <span class="p">(</span><span class="n">user_id</span><span class="p">,))</span>
+            <span class="n">barber_record</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+
+            <span class="k">if</span> <span class="n">barber_record</span><span class="p">:</span>
+                <span class="c1"># Update existing barber record</span>
+                <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                    <span class="s2">&quot;UPDATE Barber SET barbershop_id = </span><span class="si">%s</span><span class="s2"> WHERE user_id = </span><span class="si">%s</span><span class="s2">&quot;</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">barbershop_id</span><span class="p">,</span> <span class="n">user_id</span><span class="p">),</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># Create new barber record</span>
+                <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+                    <span class="s2">&quot;INSERT INTO Barber (user_id, barbershop_id) VALUES (</span><span class="si">%s</span><span class="s2">, </span><span class="si">%s</span><span class="s2">)&quot;</span><span class="p">,</span>
+                    <span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">barbershop_id</span><span class="p">),</span>
+                <span class="p">)</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="update_barber_barbershop">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_barber_barbershop">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_barber_barbershop</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Update the barbershop that a barber works at.</span>
+<span class="sd">    Will create a barber record if it doesn&#39;t exist.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">create_or_update_barber</span><span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">barbershop_id</span><span class="p">)</span></div>
+
+
+
+
+<div class="viewcode-block" id="get_reviews_for_barber">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_reviews_for_barber">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_reviews_for_barber</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Fetch all reviews (and replies) for a specific barber from the database.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT r.review_id, r.parent_review_id, r.rating, r.text, r.created_at, u.username</span>
+<span class="sd">                FROM review r</span>
+<span class="sd">                JOIN App_User u ON u.user_id = r.user_id</span>
+<span class="sd">                WHERE r.target_barber_id = %s</span>
+<span class="sd">                  AND r.status = &#39;show&#39;</span>
+<span class="sd">                ORDER BY r.created_at ASC</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barber_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="submit_barber_review">
+<a class="viewcode-back" href="../../app.db.html#app.db.submit_barber_review">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">submit_barber_review</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">customer_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">rating</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">comment</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Insert a new review into the review table.&quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO review (target_barber_id, user_id, rating, text, status)</span>
+<span class="sd">                VALUES (%s, %s, %s, %s, &#39;show&#39;)</span>
+<span class="sd">                RETURNING review_id</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">customer_id</span><span class="p">,</span> <span class="n">rating</span><span class="p">,</span> <span class="n">comment</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">review_id</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">review_id</span></div>
+
+
+
+<div class="viewcode-block" id="postcode_to_coordinates">
+<a class="viewcode-back" href="../../app.db.html#app.db.postcode_to_coordinates">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">postcode_to_coordinates</span><span class="p">(</span><span class="n">postcode</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Convert UK postcode to latitude/longitude using postcodes.io API.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        postcode: UK postcode (e.g., &quot;SW1A 1AA&quot;)</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Tuple (lat, lng) or None if not found</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">requests</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">response</span> <span class="o">=</span> <span class="n">requests</span><span class="o">.</span><span class="n">get</span><span class="p">(</span>
+            <span class="s2">&quot;https://api.postcodes.io/postcodes&quot;</span><span class="p">,</span>
+            <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;q&quot;</span><span class="p">:</span> <span class="n">postcode</span><span class="o">.</span><span class="n">strip</span><span class="p">()},</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="mi">10</span>
+        <span class="p">)</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">response</span><span class="o">.</span><span class="n">ok</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[POSTCODE_TO_COORDS] API error (HTTP </span><span class="si">{</span><span class="n">response</span><span class="o">.</span><span class="n">status_code</span><span class="si">}</span><span class="s2">) for &#39;</span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="n">data</span> <span class="o">=</span> <span class="n">response</span><span class="o">.</span><span class="n">json</span><span class="p">()</span>
+        
+        <span class="c1"># Check if we got results</span>
+        <span class="k">if</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;status&quot;</span><span class="p">)</span> <span class="o">!=</span> <span class="mi">200</span> <span class="ow">or</span> <span class="ow">not</span> <span class="n">data</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;result&quot;</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[POSTCODE_TO_COORDS] No results found for &#39;</span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        
+        <span class="c1"># Extract coordinates from first result</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">data</span><span class="p">[</span><span class="s2">&quot;result&quot;</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">lat</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;latitude&quot;</span><span class="p">)</span>
+        <span class="n">lng</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;longitude&quot;</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">lat</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">lng</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[POSTCODE_TO_COORDS] </span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2"> → (</span><span class="si">{</span><span class="n">lat</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">lng</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="p">(</span><span class="n">lat</span><span class="p">,</span> <span class="n">lng</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[POSTCODE_TO_COORDS] No coordinates in result for &#39;</span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2">&#39;&quot;</span><span class="p">)</span>
+            <span class="k">return</span> <span class="kc">None</span>
+            
+    <span class="k">except</span> <span class="n">requests</span><span class="o">.</span><span class="n">RequestException</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[POSTCODE_TO_COORDS] API error for &#39;</span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[POSTCODE_TO_COORDS] Unexpected error for &#39;</span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2">&#39;: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+
+
+<div class="viewcode-block" id="create_barbershop">
+<a class="viewcode-back" href="../../app.db.html#app.db.create_barbershop">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">create_barbershop</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">postcode</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">location_lat</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">location_lng</span><span class="p">:</span> <span class="nb">float</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create a new barbershop in the database.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        name: Barbershop name</span>
+<span class="sd">        postcode: UK postcode</span>
+<span class="sd">        location_lat: Latitude coordinate</span>
+<span class="sd">        location_lng: Longitude coordinate</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        barbershop_id of the newly created barbershop</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO Barbershop (name, postcode, location_lat, location_lng)</span>
+<span class="sd">                VALUES (%s, %s, %s, %s)</span>
+<span class="sd">                RETURNING barbershop_id</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">name</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">postcode</span><span class="o">.</span><span class="n">strip</span><span class="p">(),</span> <span class="n">location_lat</span><span class="p">,</span> <span class="n">location_lng</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">barbershop_id</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[CREATE_BARBERSHOP] Created barbershop (ID: </span><span class="si">{</span><span class="n">barbershop_id</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> @ </span><span class="si">{</span><span class="n">postcode</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">location_lat</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">location_lng</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">barbershop_id</span></div>
+
+
+
+<div class="viewcode-block" id="update_or_create_profile_photo">
+<a class="viewcode-back" href="../../app.db.html#app.db.update_or_create_profile_photo">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">update_or_create_profile_photo</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">image_url</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">width_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">height_px</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Create or update a ProfilePhoto record for a user.</span>
+<span class="sd">    </span>
+<span class="sd">    Uses PostgreSQL INSERT...ON CONFLICT to handle the UNIQUE constraint on user_id.</span>
+<span class="sd">    If a record already exists, it updates the image_url, width_px, and height_px.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        user_id: User ID (must exist in Users table)</span>
+<span class="sd">        image_url: Storage path to the image (e.g., &quot;profile_123_abc123.png&quot;)</span>
+<span class="sd">        width_px: Image width in pixels</span>
+<span class="sd">        height_px: Image height in pixels</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        photo_id of the created or updated ProfilePhoto record</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                INSERT INTO ProfilePhoto (user_id, image_url, width_px, height_px)</span>
+<span class="sd">                VALUES (%s, %s, %s, %s)</span>
+<span class="sd">                ON CONFLICT (user_id)</span>
+<span class="sd">                DO UPDATE SET</span>
+<span class="sd">                    image_url = EXCLUDED.image_url,</span>
+<span class="sd">                    width_px = EXCLUDED.width_px,</span>
+<span class="sd">                    height_px = EXCLUDED.height_px</span>
+<span class="sd">                RETURNING photo_id</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,</span> <span class="n">image_url</span><span class="p">,</span> <span class="n">width_px</span><span class="p">,</span> <span class="n">height_px</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="n">photo_id</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">conn</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPDATE_OR_CREATE_PROFILE_PHOTO] Updated profile photo for user </span><span class="si">{</span><span class="n">user_id</span><span class="si">}</span><span class="s2"> (ID: </span><span class="si">{</span><span class="n">photo_id</span><span class="si">}</span><span class="s2">): </span><span class="si">{</span><span class="n">image_url</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">width_px</span><span class="si">}</span><span class="s2">x</span><span class="si">{</span><span class="n">height_px</span><span class="si">}</span><span class="s2">)&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">photo_id</span></div>
+
+
+
+<div class="viewcode-block" id="get_profile_photo">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_profile_photo">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_profile_photo</span><span class="p">(</span><span class="n">user_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetch the ProfilePhoto record for a user.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        user_id: User ID</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Dict with {photo_id, user_id, image_url, width_px, height_px} or None if no photo</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">()</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT photo_id, user_id, image_url, width_px, height_px</span>
+<span class="sd">                FROM ProfilePhoto</span>
+<span class="sd">                WHERE user_id = %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">user_id</span><span class="p">,),</span>
+            <span class="p">)</span>
+            <span class="n">result</span> <span class="o">=</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+            
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="p">:</span>
+                <span class="k">return</span> <span class="kc">None</span>
+            
+            <span class="k">return</span> <span class="p">{</span>
+                <span class="s2">&quot;photo_id&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span>
+                <span class="s2">&quot;user_id&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
+                <span class="s2">&quot;image_url&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">[</span><span class="mi">2</span><span class="p">],</span>
+                <span class="s2">&quot;width_px&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">[</span><span class="mi">3</span><span class="p">],</span>
+                <span class="s2">&quot;height_px&quot;</span><span class="p">:</span> <span class="n">result</span><span class="p">[</span><span class="mi">4</span><span class="p">],</span>
+            <span class="p">}</span></div>
+
+
+
+<div class="viewcode-block" id="get_barber_gallery_photos">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barber_gallery_photos">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barber_gallery_photos</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetch haircut photos for a barber that are NOT posts (is_post = false).</span>
+<span class="sd">    Includes main tag name and barber promo info.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        barber_id: Barber ID</span>
+<span class="sd">        limit: Maximum number of photos to return (default 16 for 2x8 grid)</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        List of dicts with {photo_id, barber_id, image_url, width_px, height_px, main_tag_name, promo_name, promo_role, promo_barbershop_name, promo_profile_image_url}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT </span>
+<span class="sd">                    hp.photo_id, </span>
+<span class="sd">                    hp.barber_id, </span>
+<span class="sd">                    hp.image_url, </span>
+<span class="sd">                    hp.width_px, </span>
+<span class="sd">                    hp.height_px,</span>
+<span class="sd">                    t.name AS main_tag_name,</span>
+<span class="sd">                    u.username AS promo_name,</span>
+<span class="sd">                    u.role AS promo_role,</span>
+<span class="sd">                    bs.name AS promo_barbershop_name,</span>
+<span class="sd">                    pp.image_url AS promo_profile_image_url</span>
+<span class="sd">                FROM HaircutPhoto hp</span>
+<span class="sd">                LEFT JOIN Tag t ON t.tag_id = hp.main_tag</span>
+<span class="sd">                JOIN Barber b ON b.barber_id = hp.barber_id</span>
+<span class="sd">                JOIN App_User u ON u.user_id = b.user_id</span>
+<span class="sd">                LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id</span>
+<span class="sd">                LEFT JOIN ProfilePhoto pp ON pp.user_id = u.user_id</span>
+<span class="sd">                WHERE hp.barber_id = %s AND hp.is_post = FALSE AND hp.status = &#39;show&#39;</span>
+<span class="sd">                ORDER BY hp.created_at DESC</span>
+<span class="sd">                LIMIT %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barber_id</span><span class="p">,</span> <span class="n">limit</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span></div>
+
+
+
+<div class="viewcode-block" id="get_barbershop_gallery_photos">
+<a class="viewcode-back" href="../../app.db.html#app.db.get_barbershop_gallery_photos">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_barbershop_gallery_photos</span><span class="p">(</span><span class="n">barbershop_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">16</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Fetch haircut photos for all barbers at a barbershop that are NOT posts (is_post = false).</span>
+<span class="sd">    Includes main tag name and barber promo info.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        barbershop_id: Barbershop ID</span>
+<span class="sd">        limit: Maximum number of photos to return (default 16 for 2x8 grid)</span>
+<span class="sd">        </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        List of dicts with {photo_id, barber_id, image_url, width_px, height_px, main_tag_name, promo_name, promo_role, promo_barbershop_name, promo_profile_image_url}</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">with</span> <span class="n">_get_conn</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="k">with</span> <span class="n">conn</span><span class="o">.</span><span class="n">cursor</span><span class="p">(</span><span class="n">cursor_factory</span><span class="o">=</span><span class="n">psycopg2</span><span class="o">.</span><span class="n">extras</span><span class="o">.</span><span class="n">RealDictCursor</span><span class="p">)</span> <span class="k">as</span> <span class="n">cur</span><span class="p">:</span>
+            <span class="n">cur</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span>
+<span class="w">                </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">                SELECT </span>
+<span class="sd">                    hp.photo_id, </span>
+<span class="sd">                    hp.barber_id, </span>
+<span class="sd">                    hp.image_url, </span>
+<span class="sd">                    hp.width_px, </span>
+<span class="sd">                    hp.height_px,</span>
+<span class="sd">                    t.name AS main_tag_name,</span>
+<span class="sd">                    u.username AS promo_name,</span>
+<span class="sd">                    u.role AS promo_role,</span>
+<span class="sd">                    bs.name AS promo_barbershop_name,</span>
+<span class="sd">                    pp.image_url AS promo_profile_image_url</span>
+<span class="sd">                FROM HaircutPhoto hp</span>
+<span class="sd">                LEFT JOIN Tag t ON t.tag_id = hp.main_tag</span>
+<span class="sd">                JOIN Barber b ON b.barber_id = hp.barber_id</span>
+<span class="sd">                JOIN App_User u ON u.user_id = b.user_id</span>
+<span class="sd">                LEFT JOIN Barbershop bs ON bs.barbershop_id = b.barbershop_id</span>
+<span class="sd">                LEFT JOIN ProfilePhoto pp ON pp.user_id = u.user_id</span>
+<span class="sd">                WHERE b.barbershop_id = %s AND hp.is_post = FALSE AND hp.status = &#39;show&#39;</span>
+<span class="sd">                ORDER BY hp.created_at DESC</span>
+<span class="sd">                LIMIT %s</span>
+<span class="sd">                &quot;&quot;&quot;</span><span class="p">,</span>
+                <span class="p">(</span><span class="n">barbershop_id</span><span class="p">,</span> <span class="n">limit</span><span class="p">),</span>
+            <span class="p">)</span>
+            <span class="k">return</span> <span class="n">cur</span><span class="o">.</span><span class="n">fetchall</span><span class="p">()</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Cyrus Alli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

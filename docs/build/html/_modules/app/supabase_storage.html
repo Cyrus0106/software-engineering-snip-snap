@@ -1,0 +1,237 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="../../">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>app.supabase_storage &mdash; Snip-Snap 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="../../_static/css/theme.css?v=9edc463e" />
+
+  
+      <script src="../../_static/jquery.js?v=5d32c60e"></script>
+      <script src="../../_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="../../_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="../../index.html" class="icon icon-home">
+            Snip-Snap
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Modules</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../app.input_sanitization.html">app.input_sanitization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.access.html">app.access</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.auth.html">app.auth</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.db.html">app.db</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.api.html">app.api</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.routes.html">app.routes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../app.supabase_storage.html">app.supabase_storage</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">Snip-Snap</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../../index.html" class="icon icon-home" aria-label="Home"></a></li>
+          <li class="breadcrumb-item"><a href="../index.html">Module code</a></li>
+      <li class="breadcrumb-item active">app.supabase_storage</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <h1>Source code for app.supabase_storage</h1><div class="highlight"><pre>
+<span></span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">Supabase Storage helpers for uploading images and generating signed URLs.</span>
+
+<span class="sd">All photo assets (profile photos, haircut posts, gallery images) are stored</span>
+<span class="sd">in a single Supabase Storage bucket. This module wraps the supabase-py client</span>
+<span class="sd">with two public functions:</span>
+
+<span class="sd">- :func:`sign_storage_path` — convert a storage path to a time-limited URL.</span>
+<span class="sd">- :func:`upload_photo_to_storage` — upload raw image bytes and return the path.</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">mimetypes</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">supabase</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_client</span>
+
+<span class="n">_supabase</span> <span class="o">=</span> <span class="kc">None</span>
+
+<div class="viewcode-block" id="get_supabase">
+<a class="viewcode-back" href="../../app.supabase_storage.html#app.supabase_storage.get_supabase">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">get_supabase</span><span class="p">():</span>
+    <span class="k">global</span> <span class="n">_supabase</span>
+    <span class="k">if</span> <span class="n">_supabase</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">url</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_URL&quot;</span><span class="p">]</span>
+        <span class="n">key</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;SUPABASE_SERVICE_ROLE_KEY&quot;</span><span class="p">]</span>
+        <span class="n">_supabase</span> <span class="o">=</span> <span class="n">create_client</span><span class="p">(</span><span class="n">url</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">_supabase</span></div>
+
+
+<div class="viewcode-block" id="sign_storage_path">
+<a class="viewcode-back" href="../../app.supabase_storage.html#app.supabase_storage.sign_storage_path">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">sign_storage_path</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">expires_in</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3600</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Given a storage path like &#39;barber_12/photo_987.jpg&#39;, returns a signed URL.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SUPABASE_STORAGE_BUCKET&quot;</span><span class="p">,</span> <span class="s2">&quot;haircuts&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+
+    <span class="n">sb</span> <span class="o">=</span> <span class="n">get_supabase</span><span class="p">()</span>
+    <span class="n">res</span> <span class="o">=</span> <span class="n">sb</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">bucket</span><span class="p">)</span><span class="o">.</span><span class="n">create_signed_url</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">expires_in</span><span class="p">)</span>
+
+    <span class="c1"># supabase-py returns a dict-like object; support both shapes</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;signedURL&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;signedUrl&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="n">res</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;signed_url&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="s2">&quot;signed_url&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="s2">&quot;signedURL&quot;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="upload_photo_to_storage">
+<a class="viewcode-back" href="../../app.supabase_storage.html#app.supabase_storage.upload_photo_to_storage">[docs]</a>
+<span class="k">def</span><span class="w"> </span><span class="nf">upload_photo_to_storage</span><span class="p">(</span><span class="n">barber_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">file_data</span><span class="p">:</span> <span class="nb">bytes</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Upload a photo to Supabase storage and return the storage path.</span>
+<span class="sd">    </span>
+<span class="sd">    Args:</span>
+<span class="sd">        barber_id: The barber&#39;s ID</span>
+<span class="sd">        file_data: The file content as bytes</span>
+<span class="sd">        filename: Original filename (used to get extension)</span>
+<span class="sd">    </span>
+<span class="sd">    Returns:</span>
+<span class="sd">        Storage path (e.g., &#39;barber_12/photo_123.jpg&#39;) or None if upload fails</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">bucket</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SUPABASE_STORAGE_BUCKET&quot;</span><span class="p">,</span> <span class="s2">&quot;haircuts&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">file_data</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    
+    <span class="c1"># Generate storage path: barber_&lt;id&gt;/&lt;uuid&gt;.&lt;ext&gt;</span>
+    <span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+    <span class="n">file_ext</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">splitext</span><span class="p">(</span><span class="n">filename</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="n">storage_filename</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}{</span><span class="n">file_ext</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">storage_path</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;barber_</span><span class="si">{</span><span class="n">barber_id</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">storage_filename</span><span class="si">}</span><span class="s2">&quot;</span>
+    
+    <span class="c1"># Determine MIME type from file extension</span>
+    <span class="n">mime_type</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">mimetypes</span><span class="o">.</span><span class="n">guess_type</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">mime_type</span><span class="p">:</span>
+        <span class="c1"># Default to common image types based on extension</span>
+        <span class="n">mime_mapping</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s1">&#39;.jpg&#39;</span><span class="p">:</span> <span class="s1">&#39;image/jpeg&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;.jpeg&#39;</span><span class="p">:</span> <span class="s1">&#39;image/jpeg&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;.png&#39;</span><span class="p">:</span> <span class="s1">&#39;image/png&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;.gif&#39;</span><span class="p">:</span> <span class="s1">&#39;image/gif&#39;</span><span class="p">,</span>
+            <span class="s1">&#39;.webp&#39;</span><span class="p">:</span> <span class="s1">&#39;image/webp&#39;</span>
+        <span class="p">}</span>
+        <span class="n">mime_type</span> <span class="o">=</span> <span class="n">mime_mapping</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">file_ext</span><span class="p">,</span> <span class="s1">&#39;application/octet-stream&#39;</span><span class="p">)</span>
+    
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Uploading </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> (MIME: </span><span class="si">{</span><span class="n">mime_type</span><span class="si">}</span><span class="s2">) to </span><span class="si">{</span><span class="n">storage_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Bucket: </span><span class="si">{</span><span class="n">bucket</span><span class="si">}</span><span class="s2">, Barber ID: </span><span class="si">{</span><span class="n">barber_id</span><span class="si">}</span><span class="s2">, File size: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file_data</span><span class="p">)</span><span class="si">}</span><span class="s2"> bytes&quot;</span><span class="p">)</span>
+    
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">sb</span> <span class="o">=</span> <span class="n">get_supabase</span><span class="p">()</span>
+        
+        <span class="c1"># Ensure the barber folder path exists by attempting upload with proper metadata</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Attempting upload with contentType in file_options&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Try uploading with file_options parameter (content-type)</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">sb</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">bucket</span><span class="p">)</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span>
+                <span class="n">storage_path</span><span class="p">,</span> 
+                <span class="n">file_data</span><span class="p">,</span>
+                <span class="n">file_options</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;content-type&quot;</span><span class="p">:</span> <span class="n">mime_type</span><span class="p">}</span>
+            <span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Upload with file_options succeeded. Response: </span><span class="si">{</span><span class="n">res</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">res</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">storage_path</span>
+        <span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">te</span><span class="p">:</span>
+            <span class="c1"># If file_options parameter doesn&#39;t exist, try without it</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] file_options parameter not supported: </span><span class="si">{</span><span class="n">te</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Attempting upload without file_options&quot;</span><span class="p">)</span>
+            
+            <span class="n">res</span> <span class="o">=</span> <span class="n">sb</span><span class="o">.</span><span class="n">storage</span><span class="o">.</span><span class="n">from_</span><span class="p">(</span><span class="n">bucket</span><span class="p">)</span><span class="o">.</span><span class="n">upload</span><span class="p">(</span><span class="n">storage_path</span><span class="p">,</span> <span class="n">file_data</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Upload without file_options response: </span><span class="si">{</span><span class="n">res</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">res</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">storage_path</span>
+        
+        <span class="k">return</span> <span class="kc">None</span>
+        
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Error uploading to Supabase: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Error type: </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">e</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">traceback</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Traceback: </span><span class="si">{</span><span class="n">traceback</span><span class="o">.</span><span class="n">format_exc</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="c1"># Log additional debug info</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;[UPLOAD_PHOTO] Debug info:&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - Storage path: </span><span class="si">{</span><span class="n">storage_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - MIME type: </span><span class="si">{</span><span class="n">mime_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - File extension: </span><span class="si">{</span><span class="n">file_ext</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - File data length: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">file_data</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="kc">None</span></div>
+
+</pre></div>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2026, Cyrus Alli.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
