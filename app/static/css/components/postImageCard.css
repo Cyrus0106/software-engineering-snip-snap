@@ -76,6 +76,10 @@
   white-space: nowrap;
 }
 
+.post-card__promo {
+  min-height: 52px;
+}
+
 .postImageCard .user-promo {
   padding: 8px 12px 0 12px;
 }

@@ -137,7 +137,6 @@ export function initPostGallery({ mountEl, sentinelEl, tagList, config }) {
       emptyState.appendChild(title); emptyState.appendChild(message);
       mountEl.appendChild(emptyState); return;
     }
-    }
   }
 
   function buildPayload({ cursor }) {

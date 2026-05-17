@@ -5,12 +5,13 @@ export function renderPostImageCard(item, options = {}) {
   card.className = "postImageCard";
 
   // Add click handler to navigate to barber profile
- if (item.promo_user_id) { 
-  card.style.cursor = "pointer"; 
-  card.classList.add("postImageCard--clickable"); 
-  card.addEventListener("click", () => { 
-    window.location.href = `/barber/${item.promo_user_id}`; });
-
+  if (item.promo_user_id) {
+    card.style.cursor = "pointer";
+    card.classList.add("postImageCard--clickable");
+    card.addEventListener("click", () => {
+      window.location.href = `/barber/${item.promo_user_id}`;
+    });
+  }
 
   // Promo at top or shop button
   const promoMount = document.createElement("div");
