@@ -1,4 +1,15 @@
+/**
+ * ReviewWidget - A reusable component for displaying and managing reviews for a barber.
+ * Handles loading reviews from the API, displaying them with star ratings, and submitting new reviews.
+ * Supports nested replies where staff can respond to customer reviews.
+ */
 export class ReviewWidget {
+     /**
+     * Constructor initializes the review widget with DOM container and barber ID.
+     *
+     * @param {string} containerId - The ID of the HTML element where the widget will be mounted
+     * @param {string|number} barberId - The ID of the barber whose reviews to display
+     */
     constructor(containerId, barberId) {
         this.container = document.getElementById(containerId);
         this.barberId = barberId;
